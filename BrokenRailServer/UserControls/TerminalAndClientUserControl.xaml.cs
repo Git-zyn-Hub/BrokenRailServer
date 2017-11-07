@@ -86,7 +86,10 @@ namespace BrokenRailServer
 
         public TerminalAndClientUserControl(Socket socket)
         {
+            InitializeComponent();
             this.SocketImport = socket;
+            this.DataContext = this;
+            this.lblIpAndPort.Content = socket.RemoteEndPoint.ToString();
         }
 
         #region INotifyPropertyChanged Members

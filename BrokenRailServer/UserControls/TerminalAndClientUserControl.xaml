@@ -10,6 +10,10 @@
         <local:AccessPointTerminal2VisibilityConverter x:Key="terminal2VisibilityConverter"/>
         <local:AccessPointPCClient2VisibilityConverter x:Key="pcClient2VisibilityConverter"/>
         <local:AccessPointAndroidClient2VisibilityConverter x:Key="androidClient2VisibilityConverter"/>
+
+        <Style TargetType="Path">
+            <Setter Property="Margin" Value="5,0"/>
+        </Style>
     </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>

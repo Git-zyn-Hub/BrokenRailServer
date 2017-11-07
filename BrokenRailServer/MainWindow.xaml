@@ -55,7 +55,7 @@
                 </Grid.RowDefinitions>
                 <DockPanel>
                     <Label Grid.Row="0">接收：</Label>
-                    <Label x:Name="lblPackageCount"></Label>
+                    <Label x:Name="lblPackageCount" Content="{Binding PackageCount}"></Label>
                     <Label>个数据包</Label>
                     <Button x:Name="btnClear" HorizontalAlignment="Right" Width="80" Click="btnClear_Click">清空</Button>
                 </DockPanel>

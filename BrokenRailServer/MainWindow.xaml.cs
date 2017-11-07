@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -21,7 +22,7 @@ namespace BrokenRailServer
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private int _packageCount = 0;
         //保存与客户相关的信息列表
@@ -30,14 +31,33 @@ namespace BrokenRailServer
         TcpListener listener;
         //只是是否启动了监听
         bool IsStart = false;
+
+        public int PackageCount
+        {
+            get
+            {
+                return _packageCount;
+            }
+
+            set
+            {
+                if (_packageCount != value)
+                {
+                    _packageCount = value;
+                    OnPropertyChanged("PackageCount");
+                }
+            }
+        }
+
         public MainWindow()
         {
             InitializeComponent();
+            this.DataContext = this;
         }
         private void btnClear_Click(object sender, RoutedEventArgs e)
         {
-            _packageCount = 0;
-            this.lblPackageCount.Content = _packageCount.ToString();
+            PackageCount = 0;
+            this.lblPackageCount.Content = PackageCount.ToString();
             this.txtReceive.Text = string.Empty;
         }
 
@@ -113,12 +133,25 @@ namespace BrokenRailServer
         private void RemoveMethod(TerminalAndClientUserControl frd)
         {
             int i = friends.IndexOf(frd);
-            stpIpAndPortContainer.Children.RemoveAt(i);
-            lock (friends)
+            if (i != -1)
             {
-                friends.Remove(frd);
+                stpIpAndPortContainer.Children.RemoveAt(i);
+                lock (friends)
+                {
+                    friends.Remove(frd);
+                }
+                frd.Dispose();
             }
-            frd.Dispose();
+        }
+
+        private void clearFriends()
+        {
+            foreach (TerminalAndClientUserControl item in friends)
+            {
+                item.Dispose();
+            }
+            stpIpAndPortContainer.Children.Clear();
+            friends.Clear();
         }
 
         private void btnStartListening_Click(object sender, RoutedEventArgs e)
@@ -141,7 +174,7 @@ namespace BrokenRailServer
             }
             catch (Exception ee)
             {
-                MessageBox.Show("开始监听异常"+ee.Message);
+                MessageBox.Show("开始监听异常：" + ee.Message);
             }
         }
         private void AcceptCallBack(IAsyncResult ar)
@@ -151,25 +184,32 @@ namespace BrokenRailServer
                 //完成异步接收连接请求的异步调用
                 //将连接信息添加到列表和下拉列表中
                 Socket handle = listener.EndAcceptSocket(ar);
-                TerminalAndClientUserControl frd = new TerminalAndClientUserControl(handle);
-                this.Dispatcher.Invoke(new Action (()=> { AddMethod(frd); }));
-                AsyncCallback callback;
-                //继续调用异步方法接收连接请求
-                if (IsStart)
+
+                this.Dispatcher.Invoke(new Action(() =>
                 {
-                    callback = new AsyncCallback(AcceptCallBack);
-                    listener.BeginAcceptSocket(callback, listener);
-                }
-                //开始在连接上进行异步的数据接收
-                frd.ClearBuffer();
-                callback = new AsyncCallback(ReceiveCallback);
-                frd.SocketImport.BeginReceive(frd.Rcvbuffer, 0, frd.Rcvbuffer.Length, SocketFlags.None, callback, frd);
+                    TerminalAndClientUserControl frd = new TerminalAndClientUserControl(handle);
+                    AddMethod(frd);
+
+                    AsyncCallback callback;
+                    //继续调用异步方法接收连接请求
+                    if (IsStart)
+                    {
+                        callback = new AsyncCallback(AcceptCallBack);
+                        listener.BeginAcceptSocket(callback, listener);
+                    }
+                    //开始在连接上进行异步的数据接收
+                    frd.ClearBuffer();
+                    callback = new AsyncCallback(ReceiveCallback);
+                    frd.SocketImport.BeginReceive(frd.Rcvbuffer, 0, frd.Rcvbuffer.Length, SocketFlags.None, callback, frd);
+                }));
             }
-            catch
+            catch (Exception ee)
             {
                 //在调用EndAcceptSocket方法时可能引发异常
                 //套接字Listener被关闭，则设置为未启动侦听状态
+                //MessageBox.Show(ee.Message);
                 IsStart = false;
+                this.Dispatcher.Invoke(new Action(() => { this.btnStartListening.IsEnabled = true; }));
             }
         }
         private void ReceiveCallback(IAsyncResult ar)
@@ -177,25 +217,52 @@ namespace BrokenRailServer
             TerminalAndClientUserControl frd = (TerminalAndClientUserControl)ar.AsyncState;
             try
             {
-                int i = frd.SocketImport.EndReceive(ar);
-                if (i == 0)
+                if (frd != null && frd.SocketImport != null)
                 {
-                    this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
-                    return;
-                }
-                else
-                {
-                    string data = Encoding.UTF8.GetString(frd.Rcvbuffer, 0, i);
-                    data = string.Format("From[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
-                    this.Dispatcher.Invoke(new Action(() => { AppendMethod(data); }));
-                    frd.ClearBuffer();
-                    AsyncCallback callback = new AsyncCallback(ReceiveCallback);
-                    frd.SocketImport.BeginReceive(frd.Rcvbuffer, 0, frd.Rcvbuffer.Length, SocketFlags.None, callback, frd);
+                    int i = frd.SocketImport.EndReceive(ar);
+                    if (i == 0)
+                    {
+                        this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
+                        return;
+                    }
+                    else
+                    {
+                        string data = Encoding.UTF8.GetString(frd.Rcvbuffer, 0, i);
+                        setAccessPointType(frd, data);
+                        data = string.Format("From[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
+                        PackageCount++;
+                        this.Dispatcher.Invoke(new Action(() => { AppendMethod(data); }));
+                        frd.ClearBuffer();
+                        AsyncCallback callback = new AsyncCallback(ReceiveCallback);
+                        frd.SocketImport.BeginReceive(frd.Rcvbuffer, 0, frd.Rcvbuffer.Length, SocketFlags.None, callback, frd);
+                    }
                 }
             }
-            catch
+            catch (Exception ee)
             {
+                MessageBox.Show("接收回调异常：" + ee.Message);
                 this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
+            }
+        }
+
+        private void setAccessPointType(TerminalAndClientUserControl frd, string data)
+        {
+            if (data.Length > 0)
+            {
+                if (data.Substring(0, 1) == "C")
+                {
+                    if (data.Length > 5 && data.Substring(0, 6) == "Client")
+                    {
+                        frd.ApType = AccessPointType.Terminal;
+                    }
+                }
+                else if (data.Substring(0, 1) == "手")
+                {
+                    if (data.Length > 1 && data.Substring(0, 2) == "手机")
+                    {
+                        frd.ApType = AccessPointType.AndroidClient;
+                    }
+                }
             }
         }
 
@@ -209,8 +276,9 @@ namespace BrokenRailServer
                 data = string.Format("To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
                 this.Dispatcher.Invoke(new Action(() => { AppendMethod(data); }));
             }
-            catch
+            catch (Exception ee)
             {
+                MessageBox.Show("发送数据异常：" + ee.Message);
                 this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
             }
         }
@@ -234,7 +302,19 @@ namespace BrokenRailServer
             listener.Stop();
             IsStart = false;
             AppendMethod("已经结束了服务器的侦听！");
+            clearFriends();
             this.btnStartListening.IsEnabled = true;
         }
+        #region INotifyPropertyChanged Members
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private void OnPropertyChanged(string name)
+        {
+            if (PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs(name));
+        }
+
+        #endregion
     }
 }
