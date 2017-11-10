@@ -1,4 +1,6 @@
-﻿using System;
+﻿using BrokenRailMonitorViaWiFi;
+using BrokenRailServer.UserControls;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -6,6 +8,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,6 +19,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Xml;
 
 namespace BrokenRailServer
 {
@@ -24,6 +28,8 @@ namespace BrokenRailServer
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        private static readonly int MasterControlWidth = 26;
+        private static readonly int RailWidth = 104;
         private int _packageCount = 0;
         //保存与客户相关的信息列表
         ArrayList friends = new ArrayList();
@@ -31,6 +37,13 @@ namespace BrokenRailServer
         TcpListener listener;
         //只是是否启动了监听
         bool IsStart = false;
+        private List<MasterControl> _masterControlList = new List<MasterControl>();
+        private List<int> _sendTime = new List<int>();
+        private List<Rail> _rail1List = new List<Rail>();
+        private List<Rail> _rail2List = new List<Rail>();
+        private ScrollViewerThumbnail _svtThumbnail;
+        private List<int> _4GPointIndex = new List<int>();
+        private List<int> _socketRegister = new List<int>();
 
         public int PackageCount
         {
@@ -46,6 +59,30 @@ namespace BrokenRailServer
                     _packageCount = value;
                     OnPropertyChanged("PackageCount");
                 }
+            }
+        }
+        public List<MasterControl> MasterControlList
+        {
+            get
+            {
+                return _masterControlList;
+            }
+
+            set
+            {
+                _masterControlList = value;
+            }
+        }
+        public List<int> SocketRegister
+        {
+            get
+            {
+                return _socketRegister;
+            }
+
+            set
+            {
+                _socketRegister = value;
             }
         }
 
@@ -203,7 +240,7 @@ namespace BrokenRailServer
                     frd.SocketImport.BeginReceive(frd.Rcvbuffer, 0, frd.Rcvbuffer.Length, SocketFlags.None, callback, frd);
                 }));
             }
-            catch (Exception ee)
+            catch
             {
                 //在调用EndAcceptSocket方法时可能引发异常
                 //套接字Listener被关闭，则设置为未启动侦听状态
@@ -305,6 +342,233 @@ namespace BrokenRailServer
             clearFriends();
             this.btnStartListening.IsEnabled = true;
         }
+
+        public void WaitingRingEnable()
+        {
+            this.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                this.modernProgressRing.IsActive = true;
+                this.gridMain.IsEnabled = false;
+            }));
+        }
+
+        public void WaitingRingDisable()
+        {
+            this.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                this.modernProgressRing.IsActive = false;
+                this.gridMain.IsEnabled = true;
+            }));
+        }
+        public void DecideDelayOrNot()
+        {
+            DateTime now = System.DateTime.Now;
+            int totalSecondToNow = now.Hour * 3600 + now.Minute * 60 + now.Second;
+            int timeIn75Second = totalSecondToNow % 75;
+
+            if (FindIntInSendTime(timeIn75Second))
+            {
+                Thread.Sleep(2000);
+                //this.dataShowUserCtrl.AddShowData("延时2秒发送指令！", DataLevel.Warning);
+            }
+        }
+        public bool FindIntInSendTime(int destInt)
+        {
+            foreach (var item in _sendTime)
+            {
+                if (item == destInt)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+
+        private void miRefreshDevices_Click(object sender, RoutedEventArgs e)
+        {
+            devicesInitial();
+        }
+
+        private void miGetAllRailInfo_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void miGetOneSectionInfo_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void miRealTimeConfig_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void miEraseFlash_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void miViewHistory_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void devicesInitial()
+        {
+            try
+            {
+                this.MasterControlList.Clear();
+                _4GPointIndex.Clear();
+                _sendTime.Clear();
+                string fileName = System.Environment.CurrentDirectory + @"\config.xml";
+                XmlDocument xmlDoc = new XmlDocument();
+                xmlDoc.Load(fileName);
+                XmlNodeList xnList = xmlDoc.SelectSingleNode("Devices").ChildNodes;
+                int nodeCount = xnList.Count;
+
+                if (this.cvsRail1.Children.Count != 0 || this.cvsRail2.Children.Count != 0 || this.cvsDevices.Children.Count != 0)
+                {
+                    this.cvsRail1.Children.Clear();
+                    this.cvsRail2.Children.Clear();
+                    this.cvsDevices.Children.Clear();
+                }
+
+                int i = 0;
+                int neighbourBigRemember = 0;
+                foreach (XmlNode device in xnList)
+                {
+                    XmlNode terminalNoNode = device.SelectSingleNode("TerminalNo");
+                    string innerTextTerminalNo = terminalNoNode.InnerText.Trim();
+                    int terminalNo = Convert.ToInt32(innerTextTerminalNo);
+                    MasterControl oneMasterControl = new MasterControl(this);
+                    oneMasterControl.lblNumber.Content = terminalNo;
+                    this.MasterControlList.Add(oneMasterControl);
+
+                    //根据终端号计算发射占用无线串口的时机
+                    int t = 4 + (terminalNo % 5) * 15;
+                    if (!FindIntInSendTime(t))
+                    {
+                        _sendTime.Add(t);
+                    }
+
+                    XmlNode is4GNode = device.SelectSingleNode("Is4G");
+                    string innerTextIs4G = is4GNode.InnerText.Trim();
+                    bool is4G = Convert.ToBoolean(innerTextIs4G);
+                    oneMasterControl.Is4G = is4G;
+                    if (is4G)
+                    {
+                        _4GPointIndex.Add(this.MasterControlList.Count - 1);
+                    }
+
+                    Rail rail1 = new Rail(terminalNo);
+                    Rail rail2 = new Rail(terminalNo);
+                    this._rail1List.Add(rail1);
+                    this._rail2List.Add(rail2);
+                    this.cvsDevices.Children.Add(this.MasterControlList[this.MasterControlList.Count - 1]);
+                    Canvas.SetLeft(this.MasterControlList[this.MasterControlList.Count - 1], (2 + RailWidth) * i);
+                    if (i < nodeCount - 1)
+                    {
+                        this.cvsRail1.Children.Add(rail1);
+                        Canvas.SetLeft(rail1, (2 + RailWidth) * i + MasterControlWidth / 2 + 1);
+
+                        this.cvsRail2.Children.Add(rail2);
+                        Canvas.SetLeft(rail2, (2 + RailWidth) * i + MasterControlWidth / 2 + 1);
+                    }
+                    XmlNode neighbourSmallNode = device.SelectSingleNode("NeighbourSmall");
+                    string innerTextNeighbourSmall = neighbourSmallNode.InnerText.Trim();
+                    int neighbourSmall = Convert.ToInt32(innerTextNeighbourSmall);
+                    XmlNode isEndNode = device.SelectSingleNode("IsEnd");
+                    string innerTextIsEnd = isEndNode.InnerText.Trim();
+                    bool isEnd = Convert.ToBoolean(innerTextIsEnd);
+                    this.MasterControlList[this.MasterControlList.Count - 1].IsEnd = isEnd;
+
+                    //检查工程文档配置文件是否正确
+                    if (i == 0)
+                    {
+                        if (neighbourSmall != 0)
+                        {
+                            MessageBox.Show("第一个终端的NeighbourSmall标签未设置为0");
+                        }
+                    }
+                    else
+                    {
+                        if (MasterControlList[i - 1].TerminalNumber != neighbourSmall)
+                        {
+                            MessageBox.Show("终端" + terminalNo.ToString() + "的小相邻终端不匹配，请检查配置文件");
+                        }
+                        if (oneMasterControl.TerminalNumber != neighbourBigRemember)
+                        {
+                            MessageBox.Show("终端" + MasterControlList[i - 1].TerminalNumber.ToString() + "的大相邻终端不匹配，请检查配置文件");
+                        }
+                    }
+                    oneMasterControl.NeighbourSmall = neighbourSmall;
+                    if (i >= 1)
+                    {
+                        MasterControlList[i - 1].NeighbourBig = neighbourBigRemember;
+                    }
+                    XmlNode neighbourBigNode = device.SelectSingleNode("NeighbourBig");
+                    string innerTextNeighbourBig = neighbourBigNode.InnerText.Trim();
+                    if (!isEnd)
+                    {
+                        int neighbourBig = Convert.ToInt32(innerTextNeighbourBig);
+                        neighbourBigRemember = neighbourBig;
+                        oneMasterControl.NeighbourBig = neighbourBig;
+                    }
+
+                    if (isEnd)
+                    {
+                        oneMasterControl.NeighbourBig = 0xff;
+                        if (!(innerTextNeighbourBig == "ff" || innerTextNeighbourBig == "FF"))
+                        {
+                            MessageBox.Show("最末终端" + terminalNo.ToString() + "的大相邻终端不是ff，请检查配置文件");
+                        }
+                    }
+                    i++;
+                }
+                this.cvsRail1.Width = (2 + RailWidth) * nodeCount;
+
+                this._svtThumbnail = new ScrollViewerThumbnail(nodeCount - 1);
+                this._svtThumbnail.ScrollViewerTotalWidth = (2 + RailWidth) * nodeCount;
+                this._svtThumbnail.MouseClickedEvent += _svtThumbnail_MouseClickedEvent;
+                this.gridMain.Children.Add(_svtThumbnail);
+                this._svtThumbnail.SetValue(Grid.RowProperty, 2);
+                this._svtThumbnail.SetValue(VerticalAlignmentProperty, VerticalAlignment.Stretch);
+                this._svtThumbnail.SetValue(MarginProperty, new Thickness(20, 0, 20, 0));
+                //重新刷新之后需要清空Socket注册。
+                //SocketRegister.Clear();
+            }
+            catch (Exception ee)
+            {
+                MessageBox.Show("设备初始化异常：" + ee.Message);
+            }
+        }
+
+        private void _svtThumbnail_MouseClickedEvent()
+        {
+            double offset = this._svtThumbnail.XPosition / this._svtThumbnail.CvsFollowMouseWidth * this._svtThumbnail.ScrollViewerTotalWidth;
+            this.svContainer.ScrollToHorizontalOffset(offset);
+        }
+        /// <summary>
+        /// 根据终端号寻找终端所在List的索引。
+        /// </summary>
+        /// <param name="terminalNo">终端号</param>
+        /// <returns>如果找到返回索引，否则返回-1</returns>
+        public int FindMasterControlIndex(int terminalNo)
+        {
+            int i = 0;
+            foreach (var item in this.MasterControlList)
+            {
+                if (item.TerminalNumber == terminalNo)
+                {
+                    return i;
+                }
+                i++;
+            }
+            return -1;
+        }
+
         #region INotifyPropertyChanged Members
 
         public event PropertyChangedEventHandler PropertyChanged;

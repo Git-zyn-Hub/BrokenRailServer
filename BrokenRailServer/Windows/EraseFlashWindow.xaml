@@ -1,0 +1,65 @@
+﻿<Window x:Class="BrokenRailMonitorViaWiFi.Windows.EraseFlashWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:BrokenRailMonitorViaWiFi.Windows"
+        xmlns:classes="clr-namespace:BrokenRailServer.Classes"
+        mc:Ignorable="d" x:Name="eraseFlashWin"
+        Title="擦除Flash" Height="183.605" Width="312.876" 
+        ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
+        Loaded="eraseFlashWin_Loaded">
+    <Grid>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <WrapPanel VerticalAlignment="Center">
+            <Label>擦除从</Label>
+            <TextBox x:Name="txtTerminalSmall" VerticalContentAlignment="Center" Width="30" KeyDown="TextBox_KeyDown" TextChanged="TextBox_TextChanged" 
+                     GotFocus="txtTerminalSmall_GotFocus" Style="{DynamicResource ErrorInputStyle}">
+                <Binding Path="TerminalSmall" ElementName="eraseFlashWin" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged">
+                    <Binding.ValidationRules>
+                        <classes:ValidationRuleFrom0To255 ErrorMessage="请输入0到255之间的整数！" />
+                    </Binding.ValidationRules>
+                </Binding>
+            </TextBox>
+            <Label>号终端到</Label>
+            <TextBox x:Name="txtTerminalBig" VerticalContentAlignment="Center" Width="30" KeyDown="TextBox_KeyDown" TextChanged="TextBox_TextChanged" 
+                     GotFocus="txtTerminalBig_GotFocus" Style="{DynamicResource ErrorInputStyle}">
+                <Binding Path="TerminalBig" ElementName="eraseFlashWin" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged">
+                    <Binding.ValidationRules>
+                        <classes:ValidationRuleFrom0To255 ErrorMessage="请输入0到255之间的整数！" />
+                    </Binding.ValidationRules>
+                </Binding>
+            </TextBox>
+            <Label>号终端之间的Flash</Label>
+        </WrapPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center">
+            <Label>起始扇区号</Label>
+            <TextBox x:Name="txtStartSector" VerticalContentAlignment="Center" Width="50" KeyDown="TextBox_KeyDown" TextChanged="TextBox_TextChanged" 
+                     GotFocus="txtStartSector_GotFocus" Style="{DynamicResource ErrorInputStyle}">
+                <Binding Path="StartSectorNo" ElementName="eraseFlashWin" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged">
+                    <Binding.ValidationRules>
+                        <classes:ValidationRuleFrom0To4095 ErrorMessage="请输入0到4095之间的整数！" />
+                    </Binding.ValidationRules>
+                </Binding>
+            </TextBox>
+            <Label>终点扇区号</Label>
+            <TextBox x:Name="txtEndSector" VerticalContentAlignment="Center" Width="50" KeyDown="TextBox_KeyDown" TextChanged="TextBox_TextChanged" 
+                     GotFocus="txtEndSector_GotFocus" Style="{DynamicResource ErrorInputStyle}">
+                <Binding Path="EndSectorNo" ElementName="eraseFlashWin" Mode="TwoWay" UpdateSourceTrigger="PropertyChanged">
+                    <Binding.ValidationRules>
+                        <classes:ValidationRuleFrom0To4095 ErrorMessage="请输入0到4095之间的整数！" />
+                    </Binding.ValidationRules>
+                </Binding>
+            </TextBox>
+        </StackPanel>
+        <DockPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center" Height="24">
+            <Button x:Name="btnEnter" Width="70" Click="btnEnter_Click" IsDefault="True">确定</Button>
+            <Button x:Name="btnCancel" Width="70" Margin="30,0,0,0" Click="btnCancel_Click">取消</Button>
+        </DockPanel>
+    </Grid>
+</Window>

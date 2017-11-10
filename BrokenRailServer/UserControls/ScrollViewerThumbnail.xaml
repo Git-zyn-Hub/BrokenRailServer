@@ -1,0 +1,25 @@
+﻿<UserControl x:Class="BrokenRailMonitorViaWiFi.ScrollViewerThumbnail"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:BrokenRailMonitorViaWiFi"
+             mc:Ignorable="d"
+             x:Name="thumbnailRail"
+             Height="100" d:DesignWidth="481.803" 
+             Loaded="thumbnailRail_Loaded" SizeChanged="thumbnailRail_SizeChanged"
+             MouseEnter="thumbnailRail_MouseEnter" MouseLeave="thumbnailRail_MouseLeave"
+             MouseMove="thumbnailRail_MouseMove" MouseLeftButtonDown="thumbnailRail_MouseLeftButtonDown">
+    <Grid Background="AntiqueWhite" Height="100">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Canvas x:Name="cvsRail1Container" Grid.Row="0" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,30,0,0"></Canvas>
+        <Canvas x:Name="cvsRail2Container" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,0,0,30"></Canvas>
+        <Canvas x:Name="cvsFollowMouse" Grid.RowSpan="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border x:Name="bdrBox" BorderBrush="Black" BorderThickness="1" Height="100" Width="{Binding BorderBoxWidth, ElementName=thumbnailRail}" Visibility="Hidden"
+                    Canvas.Left="{Binding XPosition, ElementName=thumbnailRail}"></Border>
+        </Canvas>
+    </Grid>
+</UserControl>

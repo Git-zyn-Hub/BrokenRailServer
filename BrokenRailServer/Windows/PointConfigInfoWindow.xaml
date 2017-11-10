@@ -1,0 +1,46 @@
+﻿<Window x:Class="BrokenRailMonitorViaWiFi.Windows.PointConfigInfoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:BrokenRailMonitorViaWiFi.Windows"
+        mc:Ignorable="d"
+        Title="单点配置信息" Height="300" Width="300"
+        ResizeMode="NoResize" Loaded="Window_Loaded" WindowStartupLocation="CenterOwner">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="2*"/>
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <Label x:Name="lblTerminalNo" HorizontalAlignment="Center" FontSize="18"></Label>
+        </StackPanel>
+        <DockPanel Grid.Row="1" VerticalAlignment="Center" Margin="50,0">
+            <Label>次级相邻小终端：</Label>
+            <Label x:Name="lblNeighbourSmallSecondary" Width="40" HorizontalAlignment="Right" Margin="0,0,20,0" HorizontalContentAlignment="Center"></Label>
+        </DockPanel>
+        <DockPanel Grid.Row="2" VerticalAlignment="Center" Margin="50,0">
+            <Label>相邻小终端：</Label>
+            <Label x:Name="lblNeighbourSmall" Width="40" HorizontalAlignment="Right" Margin="0,0,20,0" HorizontalContentAlignment="Center"></Label>
+        </DockPanel>
+        <DockPanel Grid.Row="3" VerticalAlignment="Center" Margin="50,0">
+            <Label>相邻大终端：</Label>
+            <Label x:Name="lblNeighbourBig" Width="40" HorizontalAlignment="Right" Margin="0,0,20,0" HorizontalContentAlignment="Center"></Label>
+        </DockPanel>
+        <DockPanel Grid.Row="4" VerticalAlignment="Center" Margin="50,0">
+            <Label>次级相邻大终端：</Label>
+            <Label x:Name="lblNeighbourBigSecondary" Width="40" HorizontalAlignment="Right" Margin="0,0,20,0" HorizontalContentAlignment="Center"></Label>
+        </DockPanel>
+        <DockPanel Grid.Row="5" VerticalAlignment="Center" Margin="50,0">
+            <Label>Flash是否有效：</Label>
+            <Label x:Name="lblFlashIsValid" Width="40" HorizontalAlignment="Right" Margin="0,0,20,0" HorizontalContentAlignment="Center"></Label>
+        </DockPanel>
+        <Button x:Name="btnEnter" Grid.Row="6" Width="80" Height="28" IsDefault="True" Click="btnEnter_Click">确定</Button>
+    </Grid>
+</Window>

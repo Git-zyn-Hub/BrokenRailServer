@@ -1,0 +1,13 @@
+﻿<UserControl x:Class="BrokenRailMonitorViaWiFi.Rail"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:BrokenRailMonitorViaWiFi"
+             x:Name="railUserControl"
+             mc:Ignorable="d" Height="26" Width="104"
+             MouseLeftButtonDown="railUserControl_MouseLeftButtonDown">
+    <Grid>
+        <Rectangle x:Name="recRail" Fill="red" Height="10" Width="104"></Rectangle>
+    </Grid>
+</UserControl>
