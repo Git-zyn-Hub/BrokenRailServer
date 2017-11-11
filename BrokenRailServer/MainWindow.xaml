@@ -186,9 +186,6 @@
                         <RowDefinition Height="25"/>
                         <RowDefinition Height="100*"/>
                         <RowDefinition Height="100*"/>
-                        <RowDefinition Height="120*"/>
-                        <RowDefinition Height="3"/>
-                        <RowDefinition Height="120*"/>
                     </Grid.RowDefinitions>
                     <DockPanel Grid.Row="0">
                         <Menu x:Name="menu" Height="25" HorizontalAlignment="Left">
@@ -207,8 +204,8 @@
                             <Label x:Name="lblPackageCountCopy"></Label>
                         </StackPanel>
                     </DockPanel>
-                    <ScrollViewer x:Name="svContainer" Grid.Row="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden">
-                        <StackPanel VerticalAlignment="Bottom">
+                    <ScrollViewer x:Name="svContainer" Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden">
+                        <StackPanel VerticalAlignment="Top" Margin="0,20,0,0">
                             <Canvas x:Name="cvsRail1" Height="36" Margin="20,0" HorizontalAlignment="Left">
                             </Canvas>
                             <Canvas x:Name="cvsDevices" Height="36" Margin="20,0">
@@ -217,7 +214,7 @@
                             </Canvas>
                         </StackPanel>
                     </ScrollViewer>
-                    <classes:ModernProgressRing x:Name="modernProgressRing" Grid.RowSpan="6" IsActive="False" Width="100" Height="100" Panel.ZIndex="100"
+                    <classes:ModernProgressRing x:Name="modernProgressRing" Grid.RowSpan="3" IsActive="False" Width="100" Height="100" Panel.ZIndex="100"
                                   Style="{StaticResource CircleProgressRingStyle}" >
                     </classes:ModernProgressRing>
                     <!--<GridSplitter Grid.Row="4" Background="AntiqueWhite" VerticalAlignment="Center" HorizontalAlignment="Stretch" Height="3"></GridSplitter>

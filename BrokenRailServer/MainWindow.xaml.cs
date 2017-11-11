@@ -205,7 +205,7 @@ namespace BrokenRailServer
                 listener = new TcpListener(localep);
                 listener.Start(100);
                 IsStart = true;
-                AppendMethod(string.Format("服务器已经启动监听！端点为：{0}。", listener.LocalEndpoint.ToString()));
+                AppendMethod(string.Format(DateTime.Now.ToString("HH:mm:ss.fff") + "->服务器已经启动监听！端点为：{0}。", listener.LocalEndpoint.ToString()));
                 //接受连接请求的异步调用
                 AsyncCallback callback = new AsyncCallback(AcceptCallBack);
                 listener.BeginAcceptSocket(callback, listener);
@@ -268,10 +268,13 @@ namespace BrokenRailServer
                     {
                         string data = Encoding.UTF8.GetString(frd.Rcvbuffer, 0, i);
                         setAccessPointType(frd, data);
-                        data = string.Format("From[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
+                        data = string.Format(DateTime.Now.ToString("HH:mm:ss.fff") + "->From[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
                         PackageCount++;
-                        this.Dispatcher.Invoke(new Action(() => { AppendMethod(data); }));
-                        ScrollControl();
+                        this.Dispatcher.Invoke(new Action(() =>
+                        {
+                            AppendMethod(data);
+                            ScrollControl();
+                        }));
                         frd.ClearBuffer();
                         AsyncCallback callback = new AsyncCallback(ReceiveCallback);
                         frd.SocketImport.BeginReceive(frd.Rcvbuffer, 0, frd.Rcvbuffer.Length, SocketFlags.None, callback, frd);
@@ -287,7 +290,7 @@ namespace BrokenRailServer
 
         private void setAccessPointType(TerminalAndClientUserControl frd, string data)
         {
-            if (frd.ApType != AccessPointType.Default)
+            if (frd.ApType == AccessPointType.Default)
             {
                 if (data.Length > 0)
                 {
@@ -316,7 +319,7 @@ namespace BrokenRailServer
                 byte[] msg = Encoding.UTF8.GetBytes(data);
                 AsyncCallback callback = new AsyncCallback(SendCallback);
                 frd.SocketImport.BeginSend(msg, 0, msg.Length, SocketFlags.None, callback, frd);
-                data = string.Format("To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
+                data = string.Format(DateTime.Now.ToString("HH:mm:ss.fff") + "->To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
                 this.Dispatcher.Invoke(new Action(() => { AppendMethod(data); }));
             }
             catch (Exception ee)
@@ -539,8 +542,8 @@ namespace BrokenRailServer
                 this._svtThumbnail.ScrollViewerTotalWidth = (2 + RailWidth) * nodeCount;
                 this._svtThumbnail.MouseClickedEvent += _svtThumbnail_MouseClickedEvent;
                 this.gridMain.Children.Add(_svtThumbnail);
-                this._svtThumbnail.SetValue(Grid.RowProperty, 2);
-                this._svtThumbnail.SetValue(VerticalAlignmentProperty, VerticalAlignment.Stretch);
+                this._svtThumbnail.SetValue(Grid.RowProperty, 1);
+                this._svtThumbnail.SetValue(VerticalAlignmentProperty, VerticalAlignment.Bottom);
                 this._svtThumbnail.SetValue(MarginProperty, new Thickness(20, 0, 20, 0));
                 //重新刷新之后需要清空Socket注册。
                 //SocketRegister.Clear();
