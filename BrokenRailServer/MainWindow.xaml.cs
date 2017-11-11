@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -44,6 +45,7 @@ namespace BrokenRailServer
         private ScrollViewerThumbnail _svtThumbnail;
         private List<int> _4GPointIndex = new List<int>();
         private List<int> _socketRegister = new List<int>();
+        private bool _stopScroll = false;
 
         public int PackageCount
         {
@@ -269,6 +271,7 @@ namespace BrokenRailServer
                         data = string.Format("From[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
                         PackageCount++;
                         this.Dispatcher.Invoke(new Action(() => { AppendMethod(data); }));
+                        ScrollControl();
                         frd.ClearBuffer();
                         AsyncCallback callback = new AsyncCallback(ReceiveCallback);
                         frd.SocketImport.BeginReceive(frd.Rcvbuffer, 0, frd.Rcvbuffer.Length, SocketFlags.None, callback, frd);
@@ -284,20 +287,23 @@ namespace BrokenRailServer
 
         private void setAccessPointType(TerminalAndClientUserControl frd, string data)
         {
-            if (data.Length > 0)
+            if (frd.ApType != AccessPointType.Default)
             {
-                if (data.Substring(0, 1) == "C")
+                if (data.Length > 0)
                 {
-                    if (data.Length > 5 && data.Substring(0, 6) == "Client")
+                    if (data.Substring(0, 1) == "C")
                     {
-                        frd.ApType = AccessPointType.Terminal;
+                        if (data.Length > 5 && data.Substring(0, 6) == "Client")
+                        {
+                            frd.ApType = AccessPointType.Terminal;
+                        }
                     }
-                }
-                else if (data.Substring(0, 1) == "手")
-                {
-                    if (data.Length > 1 && data.Substring(0, 2) == "手机")
+                    else if (data.Substring(0, 1) == "手")
                     {
-                        frd.ApType = AccessPointType.AndroidClient;
+                        if (data.Length > 1 && data.Substring(0, 2) == "手机")
+                        {
+                            frd.ApType = AccessPointType.AndroidClient;
+                        }
                     }
                 }
             }
@@ -569,6 +575,46 @@ namespace BrokenRailServer
             return -1;
         }
 
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            devicesInitial();
+        }
+
+        private void ScrollControl()
+        {
+            if (!_stopScroll)
+            {
+                //自动滚动到底部
+                txtReceive.ScrollToEnd();
+            }
+        }
+        private void tbtnPin_Checked(object sender, RoutedEventArgs e)
+        {
+            _stopScroll = true;
+        }
+
+        private void tbtnPin_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _stopScroll = false;
+        }
+
+        private void Button_MouseLeave(object sender, MouseEventArgs e)
+        {
+            ToggleButton b = sender as ToggleButton;
+            if (b != null)
+            {
+                b.BorderThickness = new Thickness(0);
+            }
+        }
+
+        private void Button_MouseEnter(object sender, MouseEventArgs e)
+        {
+            ToggleButton b = sender as ToggleButton;
+            if (b != null)
+            {
+                b.BorderThickness = new Thickness(1);
+            }
+        }
         #region INotifyPropertyChanged Members
 
         public event PropertyChangedEventHandler PropertyChanged;

@@ -27,7 +27,6 @@ namespace BrokenRailServer.UserControls
     public partial class MasterControl : UserControl, INotifyPropertyChanged
     {
         private int _terminalNumber;
-        private Socket _socketImport;
         private int _neighbourSmall;
         private int _neighbourBig;
         private bool _isEnd;
@@ -36,6 +35,7 @@ namespace BrokenRailServer.UserControls
         private SendDataPackage _sendDataPackage = new SendDataPackage();
         private MainWindow _mainWin;
         public static readonly DependencyProperty Is4GProperty = DependencyProperty.Register("Is4G", typeof(bool), typeof(MasterControl), new PropertyMetadata(false, OnIs4GChanged));
+        private TerminalAndClientUserControl _terminal = null;
 
         public bool Is4G
         {
@@ -56,20 +56,6 @@ namespace BrokenRailServer.UserControls
                     _terminalNumber = value;
                     OnPropertyChanged("TerminalNumber");
                 }
-            }
-        }
-
-        public Socket SocketImport
-        {
-            get
-            {
-                return _socketImport;
-            }
-
-            set
-            {
-                _socketImport = value;
-                IpAndPort = _socketImport.RemoteEndPoint.ToString();
             }
         }
 
@@ -135,6 +121,20 @@ namespace BrokenRailServer.UserControls
             set
             {
                 _find4GErrorMsg = value;
+            }
+        }
+
+        public TerminalAndClientUserControl Terminal
+        {
+            get
+            {
+                return _terminal;
+            }
+
+            set
+            {
+                _terminal = value;
+                IpAndPort = _terminal.SocketImport.RemoteEndPoint.ToString();
             }
         }
 
@@ -415,7 +415,7 @@ namespace BrokenRailServer.UserControls
                     {
                         if (_mainWin.SocketRegister[j] == this.TerminalNumber)
                         {
-                            return this.SocketImport;
+                            return getTerminalSocket();
                         }
                         else if (j == _mainWin.SocketRegister.Count - 1)
                         {
@@ -443,7 +443,7 @@ namespace BrokenRailServer.UserControls
                         {
                             if (item.TerminalNumber == _mainWin.SocketRegister[0])
                             {
-                                return item.SocketImport;
+                                return item.getTerminalSocket();
                             }
                         }
                     }
@@ -462,7 +462,7 @@ namespace BrokenRailServer.UserControls
                                     {
                                         if (_mainWin.SocketRegister[j] == terminal4GNo)
                                         {
-                                            return _mainWin.MasterControlList[i].SocketImport;
+                                            return _mainWin.MasterControlList[i].getTerminalSocket();
                                         }
                                         else if (j == _mainWin.SocketRegister.Count - 1)
                                         {
@@ -486,7 +486,7 @@ namespace BrokenRailServer.UserControls
                                     {
                                         if (_mainWin.SocketRegister[j] == terminal4GNo)
                                         {
-                                            return _mainWin.MasterControlList[i].SocketImport;
+                                            return _mainWin.MasterControlList[i].getTerminalSocket();
                                         }
                                         else if (j == _mainWin.SocketRegister.Count - 1)
                                         {
@@ -502,6 +502,14 @@ namespace BrokenRailServer.UserControls
                 Find4GErrorMsg = "主窗口句柄为空！";
                 return null;
             }
+        }
+        private Socket getTerminalSocket()
+        {
+            if (Terminal != null)
+            {
+                return this.Terminal.SocketImport;
+            }
+            return null;
         }
         private bool FindMasterControl(MasterControl mc)
         {

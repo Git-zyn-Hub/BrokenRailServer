@@ -9,7 +9,8 @@
         mc:Ignorable="d"
         Title="断轨服务器" 
         Height="700" Width="1000"
-        MinHeight="400" MinWidth="700">
+        MinHeight="400" MinWidth="700"
+        Loaded="Window_Loaded">
     <Grid>
         <TabControl>
             <TabItem Header="服务" Style="{DynamicResource TabItemStyle}">
@@ -62,8 +63,103 @@
                                 <Label Grid.Row="0">接收：</Label>
                                 <Label x:Name="lblPackageCount" Content="{Binding PackageCount}"></Label>
                                 <Label>个数据包</Label>
-                                <Button x:Name="btnClear" HorizontalAlignment="Right" Width="80" Click="btnClear_Click">清空</Button>
-                            </DockPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <ToggleButton x:Name="tbtnPin" HorizontalAlignment="Right" VerticalAlignment="Top" Height="18" Width="18" Margin="0,5,10,0"
+                                                  BorderThickness="0" Background="Transparent" Style="{DynamicResource ToggleButtonStyle1}"
+                                                  MouseEnter="Button_MouseEnter" MouseLeave="Button_MouseLeave"
+                                                  ToggleButton.Checked="tbtnPin_Checked" ToggleButton.Unchecked="tbtnPin_Unchecked" RenderTransformOrigin="0.5,0.5">
+                                        <ToggleButton.Resources>
+                                            <Style x:Key="FocusVisual">
+                                                <Setter Property="Control.Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate>
+                                                            <Rectangle Margin="2" SnapsToDevicePixels="true" Stroke="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" StrokeThickness="1" StrokeDashArray="1 2"/>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                            <SolidColorBrush x:Key="Button.Static.Background" Color="#FFDDDDDD"/>
+                                            <SolidColorBrush x:Key="Button.Static.Border" Color="#FF707070"/>
+                                            <SolidColorBrush x:Key="Button.MouseOver.Background" Color="#FFBEE6FD"/>
+                                            <SolidColorBrush x:Key="Button.MouseOver.Border" Color="#FF3C7FB1"/>
+                                            <SolidColorBrush x:Key="Button.Pressed.Background" Color="Transparent"/>
+                                            <SolidColorBrush x:Key="Button.Pressed.Border" Color="#FF2C628B"/>
+                                            <SolidColorBrush x:Key="Button.Disabled.Background" Color="#FFF4F4F4"/>
+                                            <SolidColorBrush x:Key="Button.Disabled.Border" Color="#FFADB2B5"/>
+                                            <SolidColorBrush x:Key="Button.Disabled.Foreground" Color="#FF838383"/>
+                                            <Style x:Key="ToggleButtonStyle1" TargetType="{x:Type ToggleButton}">
+                                                <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
+                                                <Setter Property="Background" Value="{StaticResource Button.Static.Background}"/>
+                                                <Setter Property="BorderBrush" Value="{StaticResource Button.Static.Border}"/>
+                                                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="1"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                                            <Border x:Name="border" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" SnapsToDevicePixels="true">
+                                                                <ContentPresenter x:Name="contentPresenter" Focusable="False" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" Margin="{TemplateBinding Padding}" RecognizesAccessKey="True" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="Button.IsDefaulted" Value="true">
+                                                                    <Setter Property="BorderBrush" TargetName="border" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsMouseOver" Value="true">
+                                                                    <Setter Property="Background" TargetName="border" Value="{StaticResource Button.MouseOver.Background}"/>
+                                                                    <Setter Property="BorderBrush" TargetName="border" Value="{StaticResource Button.MouseOver.Border}"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsPressed" Value="true">
+                                                                    <Setter Property="Background" TargetName="border" Value="{StaticResource Button.Pressed.Background}"/>
+                                                                    <Setter Property="BorderBrush" TargetName="border" Value="{StaticResource Button.Pressed.Border}"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="false">
+                                                                    <Setter Property="Background" TargetName="border" Value="{StaticResource Button.Disabled.Background}"/>
+                                                                    <Setter Property="BorderBrush" TargetName="border" Value="{StaticResource Button.Disabled.Border}"/>
+                                                                    <Setter Property="TextElement.Foreground" TargetName="contentPresenter" Value="{StaticResource Button.Disabled.Foreground}"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ToggleButton.Resources>
+                                        <ToggleButton.RenderTransform>
+                                            <RotateTransform x:Name="trans" Angle="0"/>
+                                        </ToggleButton.RenderTransform>
+                                        <ToggleButton.Triggers>
+                                            <EventTrigger RoutedEvent="ToggleButton.Checked">
+                                                <BeginStoryboard >
+                                                    <Storyboard>
+                                                        <DoubleAnimation From="0" To="-90" RepeatBehavior="1x" Duration="0:0:0.1"
+                                                                         Storyboard.TargetName="trans"
+                                                                         Storyboard.TargetProperty="Angle"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </EventTrigger>
+                                            <EventTrigger RoutedEvent="ToggleButton.Unchecked">
+                                                <BeginStoryboard >
+                                                    <Storyboard>
+                                                        <DoubleAnimation From="-90" To="0" RepeatBehavior="1x" Duration="0:0:0.1"
+                                                                         Storyboard.TargetName="trans"
+                                                                         Storyboard.TargetProperty="Angle"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </EventTrigger>
+                                        </ToggleButton.Triggers>
+                                        <Path Fill="Black" Width="10" Height="13" Stretch="Fill" Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z"
+                                               RenderTransformOrigin="0.5,0.5">
+                                            <Path.RenderTransform>
+                                                <TransformGroup>
+                                                    <RotateTransform Angle="90"/>
+                                                </TransformGroup>
+                                            </Path.RenderTransform>
+                                        </Path>
+                                    </ToggleButton>
+                                    <Button x:Name="btnClear" Width="80" Click="btnClear_Click">清空</Button>
+                                </StackPanel>
+                             </DockPanel>
                             <TextBox x:Name="txtReceive" IsReadOnly="True" Grid.Row="1" ScrollViewer.VerticalScrollBarVisibility="Auto"></TextBox>
                         </Grid>
                         <Grid Grid.Row="2">
@@ -80,6 +176,12 @@
             </TabItem>
             <TabItem Header="状态" Style="{DynamicResource TabItemStyle}">
                 <Grid x:Name="gridMain">
+                    <Grid.Background>
+                        <LinearGradientBrush EndPoint="0.5,1" MappingMode="RelativeToBoundingBox" StartPoint="0.5,0">
+                            <GradientStop Color="#FF00ccff" Offset="1"/>
+                            <GradientStop Color="#FFFFF503"/>
+                        </LinearGradientBrush>
+                    </Grid.Background>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="25"/>
                         <RowDefinition Height="100*"/>
@@ -124,5 +226,5 @@
             </TabItem>
         </TabControl>
     </Grid>
-    
+
 </Window>
