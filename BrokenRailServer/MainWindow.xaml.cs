@@ -45,7 +45,7 @@ namespace BrokenRailServer
         private ScrollViewerThumbnail _svtThumbnail;
         private List<int> _4GPointIndex = new List<int>();
         private List<int> _socketRegister = new List<int>();
-        private bool _stopScroll = false;
+        private Stack _clientIDStack = new Stack();
 
         public int PackageCount
         {
@@ -90,14 +90,25 @@ namespace BrokenRailServer
 
         public MainWindow()
         {
-            InitializeComponent();
-            this.DataContext = this;
+            try
+            {
+                InitializeComponent();
+                this.DataContext = this;
+                for (int i = 100; i > 0; i--)
+                {
+                    _clientIDStack.Push(i);
+                }
+            }
+            catch (Exception ee)
+            {
+                MessageBox.Show("主窗口构造异常：" + ee.Message);
+            }
         }
         private void btnClear_Click(object sender, RoutedEventArgs e)
         {
             PackageCount = 0;
             this.lblPackageCount.Content = PackageCount.ToString();
-            this.txtReceive.Text = string.Empty;
+            this.dataShowUserCtrl.ClearContainer();
         }
 
         private void btnSend_Click(object sender, RoutedEventArgs e)
@@ -106,7 +117,7 @@ namespace BrokenRailServer
             {
                 if (txtSend.Text.Trim() == "")
                 {
-                    AppendMethod("不能发送空字符串！");
+                    AppendMessage("不能发送空字符串！", DataLevel.Error);
                     txtSend.Focus();
                     return;
                 }
@@ -154,10 +165,9 @@ namespace BrokenRailServer
 
 
         //在列表中写字符串的委托方法
-        private void AppendMethod(string str)
+        private void AppendMessage(string str, DataLevel level)
         {
-            txtReceive.Text += str;
-            txtReceive.Text += "\r\n";
+            dataShowUserCtrl.AddShowData(str, level);
         }
         //向下拉列表中添加信息的委托方法
         private void AddMethod(TerminalAndClientUserControl frd)
@@ -174,6 +184,10 @@ namespace BrokenRailServer
             int i = friends.IndexOf(frd);
             if (i != -1)
             {
+                if (!_clientIDStack.Contains(frd.ClientID))
+                {
+                    _clientIDStack.Push(frd.ClientID);
+                }
                 stpIpAndPortContainer.Children.RemoveAt(i);
                 lock (friends)
                 {
@@ -205,7 +219,7 @@ namespace BrokenRailServer
                 listener = new TcpListener(localep);
                 listener.Start(100);
                 IsStart = true;
-                AppendMethod(string.Format(DateTime.Now.ToString("HH:mm:ss.fff") + "->服务器已经启动监听！端点为：{0}。", listener.LocalEndpoint.ToString()));
+                AppendMessage(string.Format("服务器已经启动监听！端点为：{0}。", listener.LocalEndpoint.ToString()), DataLevel.Normal);
                 //接受连接请求的异步调用
                 AsyncCallback callback = new AsyncCallback(AcceptCallBack);
                 listener.BeginAcceptSocket(callback, listener);
@@ -266,14 +280,13 @@ namespace BrokenRailServer
                     }
                     else
                     {
-                        string data = Encoding.UTF8.GetString(frd.Rcvbuffer, 0, i);
-                        setAccessPointType(frd, data);
-                        data = string.Format(DateTime.Now.ToString("HH:mm:ss.fff") + "->From[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
+                        string originData = Encoding.UTF8.GetString(frd.Rcvbuffer, 0, i);
+                        string data = string.Format("From[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), originData);
                         PackageCount++;
                         this.Dispatcher.Invoke(new Action(() =>
                         {
-                            AppendMethod(data);
-                            ScrollControl();
+                            setAccessPointTypeAndClientID(frd, originData);
+                            AppendMessage(data, DataLevel.Default);
                         }));
                         frd.ClearBuffer();
                         AsyncCallback callback = new AsyncCallback(ReceiveCallback);
@@ -288,7 +301,7 @@ namespace BrokenRailServer
             }
         }
 
-        private void setAccessPointType(TerminalAndClientUserControl frd, string data)
+        private void setAccessPointTypeAndClientID(TerminalAndClientUserControl frd, string data)
         {
             if (frd.ApType == AccessPointType.Default)
             {
@@ -308,6 +321,22 @@ namespace BrokenRailServer
                             frd.ApType = AccessPointType.AndroidClient;
                         }
                     }
+
+                    if (frd.ApType == AccessPointType.Terminal)
+                    {
+
+                    }
+                    else
+                    {
+                        if (_clientIDStack.Count > 0)
+                        {
+                            frd.ClientID = (int)_clientIDStack.Pop();
+                        }
+                        else
+                        {
+                            AppendMessage("100个用户号已分配完毕。", DataLevel.Error);
+                        }
+                    }
                 }
             }
         }
@@ -319,8 +348,8 @@ namespace BrokenRailServer
                 byte[] msg = Encoding.UTF8.GetBytes(data);
                 AsyncCallback callback = new AsyncCallback(SendCallback);
                 frd.SocketImport.BeginSend(msg, 0, msg.Length, SocketFlags.None, callback, frd);
-                data = string.Format(DateTime.Now.ToString("HH:mm:ss.fff") + "->To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
-                this.Dispatcher.Invoke(new Action(() => { AppendMethod(data); }));
+                data = string.Format("To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
+                this.Dispatcher.Invoke(new Action(() => { AppendMessage(data, DataLevel.Default); }));
             }
             catch (Exception ee)
             {
@@ -340,6 +369,20 @@ namespace BrokenRailServer
                 this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
             }
         }
+        public static String bytesToHexString(byte[] src)
+        {
+            StringBuilder stringBuilder = new StringBuilder("");
+            if (src == null || src.Length <= 0)
+            {
+                return null;
+            }
+            for (int i = 0; i < src.Length; i++)
+            {
+                String hv = src[i].ToString("x2");
+                stringBuilder.Append(hv);
+            }
+            return stringBuilder.ToString();
+        }
 
         private void btnStopListening_Click(object sender, RoutedEventArgs e)
         {
@@ -347,7 +390,7 @@ namespace BrokenRailServer
                 return;
             listener.Stop();
             IsStart = false;
-            AppendMethod("已经结束了服务器的侦听！");
+            AppendMessage("已经结束了服务器的侦听！", DataLevel.Error);
             clearFriends();
             this.btnStartListening.IsEnabled = true;
         }
@@ -583,41 +626,6 @@ namespace BrokenRailServer
             devicesInitial();
         }
 
-        private void ScrollControl()
-        {
-            if (!_stopScroll)
-            {
-                //自动滚动到底部
-                txtReceive.ScrollToEnd();
-            }
-        }
-        private void tbtnPin_Checked(object sender, RoutedEventArgs e)
-        {
-            _stopScroll = true;
-        }
-
-        private void tbtnPin_Unchecked(object sender, RoutedEventArgs e)
-        {
-            _stopScroll = false;
-        }
-
-        private void Button_MouseLeave(object sender, MouseEventArgs e)
-        {
-            ToggleButton b = sender as ToggleButton;
-            if (b != null)
-            {
-                b.BorderThickness = new Thickness(0);
-            }
-        }
-
-        private void Button_MouseEnter(object sender, MouseEventArgs e)
-        {
-            ToggleButton b = sender as ToggleButton;
-            if (b != null)
-            {
-                b.BorderThickness = new Thickness(1);
-            }
-        }
         #region INotifyPropertyChanged Members
 
         public event PropertyChangedEventHandler PropertyChanged;

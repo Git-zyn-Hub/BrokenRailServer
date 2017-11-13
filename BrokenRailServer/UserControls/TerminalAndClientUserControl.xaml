@@ -18,6 +18,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="30"/>
+            <ColumnDefinition Width="40"/>
             <ColumnDefinition Width="241*"/>
             <ColumnDefinition Width="33"/>
         </Grid.ColumnDefinitions>
@@ -35,7 +36,8 @@
                 <Path Fill="Black" Data="M16,18H7V4H16M11.5,22A1.5,1.5 0 0,1 10,20.5A1.5,1.5 0 0,1 11.5,19A1.5,1.5 0 0,1 13,20.5A1.5,1.5 0 0,1 11.5,22M15.5,1H7.5A2.5,2.5 0 0,0 5,3.5V20.5A2.5,2.5 0 0,0 7.5,23H15.5A2.5,2.5 0 0,0 18,20.5V3.5A2.5,2.5 0 0,0 15.5,1Z"/>
             </Canvas>
          </StackPanel>
-        <Label x:Name="lblIpAndPort" Grid.Column="1"></Label>
-        <CheckBox x:Name="cbxSelected" Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center"></CheckBox>
+        <Label x:Name="lblClientID" Grid.Column="1" Content="{Binding ClientID}" FontWeight="Bold"></Label>
+        <Label x:Name="lblIpAndPort" Grid.Column="2"></Label>
+        <CheckBox x:Name="cbxSelected" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center"></CheckBox>
     </Grid>
 </UserControl>

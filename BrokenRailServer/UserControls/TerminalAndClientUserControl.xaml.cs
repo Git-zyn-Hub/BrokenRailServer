@@ -26,7 +26,8 @@ namespace BrokenRailServer
         private AccessPointType _apType = AccessPointType.Default;
         //用于保存与每个客户相关信息：套接字与接收缓存
         private Socket _socketImport;
-        
+        private int _clientID = 0;
+
         public byte[] Rcvbuffer;
 
         public AccessPointType ApType
@@ -41,6 +42,10 @@ namespace BrokenRailServer
                 if (_apType != value)
                 {
                     _apType = value;
+                    if (_apType == AccessPointType.Terminal)
+                    {
+                        lblClientID.Foreground = new SolidColorBrush(Colors.Orange);
+                    }
                     OnPropertyChanged("ApType");
                 }
             }
@@ -56,6 +61,23 @@ namespace BrokenRailServer
             set
             {
                 _socketImport = value;
+            }
+        }
+
+        public int ClientID
+        {
+            get
+            {
+                return _clientID;
+            }
+
+            set
+            {
+                if (_clientID != value)
+                {
+                    _clientID = value;
+                    OnPropertyChanged("ClientID");
+                }
             }
         }
 
