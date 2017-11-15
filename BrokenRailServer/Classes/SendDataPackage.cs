@@ -15,12 +15,12 @@ namespace BrokenRailMonitorViaWiFi
         //private byte _destinationAddress;
         //private byte _dataType;
         //private byte[] _dataContent;
-        private byte _checksum = 0;
+        private static byte _checksum = 0;
         public SendDataPackage()
         {
 
         }
-        public byte[] PackageSendData(byte sourceAddr, byte destinationAddr, byte dataType, byte[] dataContent)
+        public static byte[] PackageSendData(byte sourceAddr, byte destinationAddr, byte dataType, byte[] dataContent)
         {
             byte[] result;
             int length = 0;

@@ -69,6 +69,7 @@
     <Compile Include="Classes\ModernProgressRing.cs" />
     <Compile Include="Classes\SendDataPackage.cs" />
     <Compile Include="Classes\ValidationRules.cs" />
+    <Compile Include="Enums.cs" />
     <Compile Include="UserControls\DataShowUserControl.xaml.cs">
       <DependentUpon>DataShowUserControl.xaml</DependentUpon>
     </Compile>

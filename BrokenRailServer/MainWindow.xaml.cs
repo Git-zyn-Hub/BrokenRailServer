@@ -281,12 +281,14 @@ namespace BrokenRailServer
                     else
                     {
                         string originData = Encoding.UTF8.GetString(frd.Rcvbuffer, 0, i);
+                        setTerminalNoAndRegistSocket(frd, originData);
                         string data = string.Format("From[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), originData);
                         PackageCount++;
                         this.Dispatcher.Invoke(new Action(() =>
                         {
-                            setAccessPointTypeAndClientID(frd, originData);
                             AppendMessage(data, DataLevel.Default);
+                            setAccessPointTypeAndClientID(frd, originData);
+                            setLabelPackageCountColor();
                         }));
                         frd.ClearBuffer();
                         AsyncCallback callback = new AsyncCallback(ReceiveCallback);
@@ -331,6 +333,8 @@ namespace BrokenRailServer
                         if (_clientIDStack.Count > 0)
                         {
                             frd.ClientID = (int)_clientIDStack.Pop();
+                           byte[] sendData= SendDataPackage.PackageSendData(0xff, (byte)frd.ClientID, (byte)CommandType.AssignClientID, new byte[0]);
+                            SendData(frd, sendData);
                         }
                         else
                         {
@@ -339,6 +343,86 @@ namespace BrokenRailServer
                     }
                 }
             }
+        }
+
+        private void setTerminalNoAndRegistSocket(TerminalAndClientUserControl frd, string data)
+        {
+            if (data.Length > 5)
+            {
+                string strReceiveFirst3Letter = data.Substring(0, 3);
+                if (strReceiveFirst3Letter == "###")
+                {
+                    //处理心跳包
+                    //根据心跳包里面包含的终端号添加4G点中的socket。
+                    string strTerminalNo = data.Substring(3, 3);
+                    int intTerminalNo = Convert.ToInt32(strTerminalNo);
+
+                    this.Dispatcher.Invoke(new Action(() =>
+                    {
+                        frd.ClientID = intTerminalNo;
+                        if (!socketIsRegisted(intTerminalNo))
+                        {
+                            registSocket(frd, intTerminalNo);
+                        }
+                    }));
+                }
+            }
+        }
+
+        private void registSocket(TerminalAndClientUserControl frd, int intTerminalNo)
+        {
+            foreach (var item in MasterControlList)
+            {
+                if (item.TerminalNumber == intTerminalNo)
+                {
+                    if (!item.Is4G)
+                    {
+                        AppendMessage("心跳包中包含的终端号" + intTerminalNo.ToString() + "所示终端不是4G点，\r\n请检查心跳数据内容配置或者config文档！", DataLevel.Error);
+                    }
+                    else if (item.Terminal == null)
+                    {
+                        item.Terminal = frd;
+                        //socket已经导入，注册socket。
+                        SocketRegister.Add(intTerminalNo);
+                        this.dataShowUserCtrl.AddShowData(intTerminalNo.ToString() + "号终端4G点Socket注册", DataLevel.Normal);
+                    }
+                }
+            }
+        }
+
+        private bool socketIsRegisted(int intTerminalNo)
+        {
+            for (int i = 0; i < SocketRegister.Count; i++)
+            {
+                if (SocketRegister[i] == intTerminalNo)
+                {
+                    //找到已经注册的终端就跳出循环，不再找了，也不进行Socket赋值。
+                    return true;
+                }
+                else if (i == SocketRegister.Count - 1)
+                {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        private void setLabelPackageCountColor()
+        {
+            this.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                this.lblPackageCount.Content = PackageCount.ToString();
+                bool isWhite = (this.elpIndicator.Fill as SolidColorBrush).Color.Equals(Colors.White);
+                bool isGreen = (this.elpIndicator.Fill as SolidColorBrush).Color.Equals(Colors.Green);
+                if (isGreen)
+                {
+                    this.elpIndicator.Fill = new SolidColorBrush(Colors.White);
+                }
+                else if (isWhite)
+                {
+                    this.elpIndicator.Fill = new SolidColorBrush(Colors.Green);
+                }
+            }));
         }
 
         private void SendData(TerminalAndClientUserControl frd, string data)
@@ -357,6 +441,23 @@ namespace BrokenRailServer
                 this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
             }
         }
+
+        private void SendData(TerminalAndClientUserControl frd, byte[] data)
+        {
+            try
+            {
+                AsyncCallback callback = new AsyncCallback(SendCallback);
+                frd.SocketImport.BeginSend(data, 0, data.Length, SocketFlags.None, callback, frd);
+                string msg = string.Format("To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), bytesToHexString(data));
+                this.Dispatcher.Invoke(new Action(() => { AppendMessage(msg, DataLevel.Default); }));
+            }
+            catch (Exception ee)
+            {
+                MessageBox.Show("发送数据异常：" + ee.Message);
+                this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
+            }
+        }
+
         private void SendCallback(IAsyncResult ar)
         {
             TerminalAndClientUserControl frd = (TerminalAndClientUserControl)ar.AsyncState;
@@ -393,6 +494,16 @@ namespace BrokenRailServer
             AppendMessage("已经结束了服务器的侦听！", DataLevel.Error);
             clearFriends();
             this.btnStartListening.IsEnabled = true;
+            resetClientIDStack();
+        }
+
+        private void resetClientIDStack()
+        {
+            _clientIDStack.Clear();
+            for (int i = 100; i > 0; i--)
+            {
+                _clientIDStack.Push(i);
+            }
         }
 
         public void WaitingRingEnable()
