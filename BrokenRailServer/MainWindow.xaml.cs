@@ -280,7 +280,7 @@ namespace BrokenRailServer
                     }
                     else
                     {
-                        string originData = Encoding.UTF8.GetString(frd.Rcvbuffer, 0, i);
+                        string originData = preAnalyseData(frd.Rcvbuffer, i);
                         setTerminalNoAndRegistSocket(frd, originData);
                         string data = string.Format("From[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), originData);
                         PackageCount++;
@@ -301,6 +301,22 @@ namespace BrokenRailServer
                 MessageBox.Show("接收回调异常：" + ee.Message);
                 this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
             }
+        }
+
+        private string preAnalyseData(byte[] data, int length)
+        {
+            if (data.Length > 1)
+            {
+                if (data[0] == 0x55 && data[1] == 0xaa)
+                {
+                    return bytesToHexString(data, length);
+                }
+                else
+                {
+                    return Encoding.UTF8.GetString(data, 0, length);
+                }
+            }
+            return null;
         }
 
         private void setAccessPointTypeAndClientID(TerminalAndClientUserControl frd, string data)
@@ -328,12 +344,12 @@ namespace BrokenRailServer
                     {
 
                     }
-                    else
+                    else if (frd.ApType == AccessPointType.AndroidClient || frd.ApType == AccessPointType.PCClient)
                     {
                         if (_clientIDStack.Count > 0)
                         {
                             frd.ClientID = (int)_clientIDStack.Pop();
-                           byte[] sendData= SendDataPackage.PackageSendData(0xff, (byte)frd.ClientID, (byte)CommandType.AssignClientID, new byte[0]);
+                            byte[] sendData = SendDataPackage.PackageSendData(0xff, (byte)frd.ClientID, (byte)CommandType.AssignClientID, new byte[0]);
                             SendData(frd, sendData);
                         }
                         else
@@ -448,7 +464,7 @@ namespace BrokenRailServer
             {
                 AsyncCallback callback = new AsyncCallback(SendCallback);
                 frd.SocketImport.BeginSend(data, 0, data.Length, SocketFlags.None, callback, frd);
-                string msg = string.Format("To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), bytesToHexString(data));
+                string msg = string.Format("To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), bytesToHexString(data, data.Length));
                 this.Dispatcher.Invoke(new Action(() => { AppendMessage(msg, DataLevel.Default); }));
             }
             catch (Exception ee)
@@ -470,14 +486,14 @@ namespace BrokenRailServer
                 this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
             }
         }
-        public static String bytesToHexString(byte[] src)
+        public static String bytesToHexString(byte[] src, int length)
         {
             StringBuilder stringBuilder = new StringBuilder("");
             if (src == null || src.Length <= 0)
             {
                 return null;
             }
-            for (int i = 0; i < src.Length; i++)
+            for (int i = 0; i < length; i++)
             {
                 String hv = src[i].ToString("x2");
                 stringBuilder.Append(hv);
