@@ -1,4 +1,5 @@
 ﻿using BrokenRailMonitorViaWiFi;
+using BrokenRailServer.SendReceiveFile;
 using BrokenRailServer.UserControls;
 using System;
 using System.Collections;
@@ -31,6 +32,7 @@ namespace BrokenRailServer
     {
         private static readonly int MasterControlWidth = 26;
         private static readonly int RailWidth = 104;
+        private readonly int _fileReceivePort = 18527;
         private int _packageCount = 0;
         //保存与客户相关的信息列表
         ArrayList friends = new ArrayList();
@@ -287,6 +289,8 @@ namespace BrokenRailServer
                         this.Dispatcher.Invoke(new Action(() =>
                         {
                             AppendMessage(data, DataLevel.Default);
+                            handleData(frd, i);
+                            transmitData(frd, i);
                             setAccessPointTypeAndClientID(frd, originData);
                             setLabelPackageCountColor();
                         }));
@@ -300,6 +304,104 @@ namespace BrokenRailServer
             {
                 MessageBox.Show("接收回调异常：" + ee.Message);
                 this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
+            }
+        }
+
+        private void transmitData(TerminalAndClientUserControl sourceFriend, int length)
+        {
+            if (sourceFriend.ApType == AccessPointType.Terminal)
+            {
+                foreach (var item in friends)
+                {
+                    TerminalAndClientUserControl destFriend = item as TerminalAndClientUserControl;
+                    if (destFriend != null && destFriend.ApType == AccessPointType.PCClient)
+                    {
+                        byte[] data = new byte[length];
+                        Buffer.BlockCopy(sourceFriend.Rcvbuffer, 0, data, 0, length);
+                        SendData(destFriend, data);
+                    }
+                }
+            }
+            else if (sourceFriend.ApType == AccessPointType.PCClient)
+            {
+                foreach (var item in friends)
+                {
+                    TerminalAndClientUserControl destFriend = item as TerminalAndClientUserControl;
+                    if (destFriend != null && destFriend.ApType == AccessPointType.Terminal)
+                    {
+                        byte[] data = new byte[length];
+                        Buffer.BlockCopy(sourceFriend.Rcvbuffer, 0, data, 0, length);
+                        SendData(destFriend, data);
+                    }
+                }
+            }
+        }
+
+        private void handleData(TerminalAndClientUserControl frd, int length)
+        {
+            try
+            {
+                byte[] data = frd.Rcvbuffer;
+                if (data.Length > 1)
+                {
+                    if (data[0] == 0x55 && data[1] == 0xaa)
+                    {
+                        int checksum = 0;
+                        for (int i = 0; i < length - 1; i++)
+                        {
+                            checksum += data[i];
+                        }
+                        if ((checksum & 0xff) != data[length - 1])
+                        {
+                            AppendMessage("校验和出错！", DataLevel.Error);
+                            return;
+                        }
+
+                        if (data[4] == 0xff)
+                        {
+                            switch (data[5])
+                            {
+                                case (byte)CommandType.RequestConfig:
+                                    {
+                                        Thread sendFileThread = new Thread(sendConfigFile);
+                                        sendFileThread.Start();
+                                    }
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ee)
+            {
+                MessageBox.Show("处理数据异常：" + ee.Message);
+            }
+        }
+
+        private void sendConfigFile()
+        {
+            try
+            {
+                //获取远程客户端的位置  
+                //IPAddress ip = frd.ClientAddress;
+                IPAddress ip = IPAddress.Parse("127.0.0.1");
+                //使用新端口,获得远程用于接收文件的端口  
+                IPEndPoint endPoint = new IPEndPoint(ip, _fileReceivePort);
+                //连接到远程客户端  
+                TcpListener fileListener = new TcpListener(endPoint);
+                fileListener.Start(10);
+                TcpClient fileClient = fileListener.AcceptTcpClient();
+                this.Dispatcher.Invoke(new Action(() =>
+                {
+                    FileServer server = new FileServer(fileClient, AppendMessage);
+                    server.SendFile(AppDomain.CurrentDomain.BaseDirectory + "\\config.xml");
+                }));
+            }
+            catch (Exception ee)
+            {
+                MessageBox.Show("发送配置文件异常：" + ee.Message);
             }
         }
 
@@ -337,6 +439,15 @@ namespace BrokenRailServer
                         if (data.Length > 1 && data.Substring(0, 2) == "手机")
                         {
                             frd.ApType = AccessPointType.AndroidClient;
+                        }
+                        int indexOfMaoHao = data.IndexOf(':');
+                        frd.ClientAddress = IPAddress.Parse(data.Substring(2, indexOfMaoHao - 2));
+                    }
+                    else if (data.Substring(0, 1) == "电")
+                    {
+                        if (data.Length > 1 && data.Substring(0, 2) == "电脑")
+                        {
+                            frd.ApType = AccessPointType.PCClient;
                         }
                     }
 
@@ -464,7 +575,7 @@ namespace BrokenRailServer
             {
                 AsyncCallback callback = new AsyncCallback(SendCallback);
                 frd.SocketImport.BeginSend(data, 0, data.Length, SocketFlags.None, callback, frd);
-                string msg = string.Format("To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), bytesToHexString(data, data.Length));
+                string msg = string.Format("To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), preAnalyseData(data, data.Length));
                 this.Dispatcher.Invoke(new Action(() => { AppendMessage(msg, DataLevel.Default); }));
             }
             catch (Exception ee)

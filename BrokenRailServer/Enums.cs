@@ -11,4 +11,10 @@ namespace BrokenRailServer
         RequestConfig = 0xA0,
         AssignClientID = 0xA1
     }
+
+    public enum FileRequestMode
+    {
+        Upload,
+        Download
+    }
 }

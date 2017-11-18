@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,6 +28,7 @@ namespace BrokenRailServer
         //用于保存与每个客户相关信息：套接字与接收缓存
         private Socket _socketImport;
         private int _clientID = 0;
+        public IPAddress ClientAddress { get; set; }
 
         public byte[] Rcvbuffer;
 

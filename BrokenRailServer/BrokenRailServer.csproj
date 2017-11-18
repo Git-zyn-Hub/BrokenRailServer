@@ -70,6 +70,10 @@
     <Compile Include="Classes\SendDataPackage.cs" />
     <Compile Include="Classes\ValidationRules.cs" />
     <Compile Include="Enums.cs" />
+    <Compile Include="SendReceiveFile\FileServer.cs" />
+    <Compile Include="SendReceiveFile\FileProtocol.cs" />
+    <Compile Include="SendReceiveFile\ProtocolHandler.cs" />
+    <Compile Include="SendReceiveFile\ProtocolHelper.cs" />
     <Compile Include="UserControls\DataShowUserControl.xaml.cs">
       <DependentUpon>DataShowUserControl.xaml</DependentUpon>
     </Compile>
