@@ -196,6 +196,7 @@ namespace BrokenRailServer
                     friends.Remove(frd);
                 }
                 frd.Dispose();
+                AppendOfflineMsg(frd);
             }
         }
 
@@ -290,8 +291,8 @@ namespace BrokenRailServer
                         {
                             AppendMessage(data, DataLevel.Default);
                             handleData(frd, i);
-                            transmitData(frd, i);
                             setAccessPointTypeAndClientID(frd, originData);
+                            transmitData(frd, i);
                             setLabelPackageCountColor();
                         }));
                         frd.ClearBuffer();
@@ -314,7 +315,7 @@ namespace BrokenRailServer
                 foreach (var item in friends)
                 {
                     TerminalAndClientUserControl destFriend = item as TerminalAndClientUserControl;
-                    if (destFriend != null && destFriend.ApType == AccessPointType.PCClient)
+                    if (destFriend != null && (destFriend.ApType == AccessPointType.PCClient || destFriend.ApType == AccessPointType.AndroidClient))
                     {
                         byte[] data = new byte[length];
                         Buffer.BlockCopy(sourceFriend.Rcvbuffer, 0, data, 0, length);
@@ -552,6 +553,29 @@ namespace BrokenRailServer
             }));
         }
 
+        private void AppendOfflineMsg(TerminalAndClientUserControl frd)
+        {
+            string header = GetAccessPointTypeString(frd.ApType);
+            string msg = header + ":" + frd.ClientID + "下线";
+            AppendMessage(msg, DataLevel.Error);
+        }
+
+        public string GetAccessPointTypeString(AccessPointType apType)
+        {
+            switch (apType)
+            {
+                case AccessPointType.Default:
+                    return "未付值";
+                case AccessPointType.Terminal:
+                    return "终端";
+                case AccessPointType.PCClient:
+                    return "电脑";
+                case AccessPointType.AndroidClient:
+                    return "手机";
+                default:
+                    return "未付值";
+            }
+        }
         private void SendData(TerminalAndClientUserControl frd, string data)
         {
             try
