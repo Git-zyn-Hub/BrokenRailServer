@@ -15,7 +15,7 @@ namespace BrokenRailServer.SendReceiveFile
     {
         private TcpClient client;
         private NetworkStream streamToClient;
-        private const int BufferSize = 8192;
+        private const int BufferSize = 1024;
         private byte[] buffer;
         private ProtocolHandler handler;
         public delegate void ShowMessageEventHandler(string str, DataLevel level);
@@ -44,6 +44,7 @@ namespace BrokenRailServer.SendReceiveFile
             AsyncCallback callBack = new AsyncCallback(OnReadComplete);
             streamToClient.BeginRead(buffer, 0, BufferSize, callBack, null);
         }
+        int totalBytes = 0;
         //读取完成时进行回调  
         private void OnReadComplete(IAsyncResult ar)
         {
@@ -51,23 +52,69 @@ namespace BrokenRailServer.SendReceiveFile
             try
             {
                 bytesRead = streamToClient.EndRead(ar);
-                ShowMessage?.Invoke(string.Format("Reading data,{0} bytes...", bytesRead), DataLevel.Default);
+                System.Windows.Application.Current.Dispatcher.Invoke(new Action(() =>
+                {
+                    if (bytesRead != 0)
+                    {
+                        ShowMessage?.Invoke(string.Format("Reading data,{0} bytes...", bytesRead), DataLevel.Default);
+                    }
+                }));
                 if (bytesRead == 0)
                 {
-                    ShowMessage?.Invoke("Client offline.", DataLevel.Error);
+                    System.Windows.Application.Current.Dispatcher.Invoke(new Action(() =>
+                    {
+                        ShowMessage?.Invoke("Client offline.", DataLevel.Error);
+                    }));
+                    client.Close();
+                    totalBytes = 0;
                     return;
                 }
-                string msg = Encoding.Unicode.GetString(buffer, 0, bytesRead);
+
+                string path = Environment.CurrentDirectory + "//config.xml";
+                if (totalBytes == 0)
+                {
+                    if (File.Exists(path))
+                    {
+                        File.Delete(path);
+                    }
+                }
+
+                string msg = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+
+                //从缓存Buffer中读入到文件流中  
+                FileStream fs = null;
+                if (totalBytes == 0)
+                {
+                    fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
+                }
+                else
+                {
+                    fs = new FileStream(path, FileMode.Append, FileAccess.Write);
+                }
+                //do
+                //{
+                //bytesRead = streamToCLient.Read(buffer, 0, BufferSize);
+
+                fs.Write(buffer, 0, bytesRead);
+                totalBytes += bytesRead;
+                System.Windows.Application.Current.Dispatcher.Invoke(new Action(() =>
+                {
+                    ShowMessage?.Invoke(string.Format("Receiving {0}", msg), DataLevel.Default);
+                    ShowMessage?.Invoke(string.Format("Receiving {0} bytes ...", totalBytes), DataLevel.Default);
+                }));
+                //} while (bytesRead > 0);
+
                 Array.Clear(buffer, 0, buffer.Length);//清空缓存,避免脏读  
+                fs.Dispose();
 
                 //获取protocol数组  
-                string[] protocolArray = handler.GetProtocol(msg);
-                foreach (string pro in protocolArray)
-                {
-                    //这里异步调用,不然这里会比较耗时  
-                    ParameterizedThreadStart start = new ParameterizedThreadStart(handleProtocol);
-                    start.BeginInvoke(pro, null, null);
-                }
+                //string[] protocolArray = handler.GetProtocol(msg);
+                //foreach (string pro in protocolArray)
+                //{
+                //这里异步调用,不然这里会比较耗时  
+                //ThreadStart start = new ThreadStart(receiveFile);
+                //start.BeginInvoke(null, null);
+                //}
                 //再次调用BeginRead(),完成时调用自身,形成无限循环  
                 AsyncCallback callBack = new AsyncCallback(OnReadComplete);
                 streamToClient.BeginRead(buffer, 0, BufferSize, callBack, null);
@@ -79,7 +126,10 @@ namespace BrokenRailServer.SendReceiveFile
                     streamToClient.Dispose();
                 }
                 client.Close();
-                ShowMessage?.Invoke(ex.Message, DataLevel.Error);
+                System.Windows.Application.Current.Dispatcher.Invoke(new Action(() =>
+                {
+                    ShowMessage?.Invoke(ex.Message, DataLevel.Error);
+                }));
             }
         }
         //处理protocol  
@@ -92,38 +142,39 @@ namespace BrokenRailServer.SendReceiveFile
             if (protocol.Mode == FileRequestMode.Upload)
             {
                 //客户端发送文件,对服务端来说则是接收文件  
-                receiveFile(protocol);
+                receiveFile();
             }
-            else if (protocol.Mode == FileRequestMode.Download)
-            {
-                //客户端接收文件,对服务端来说是发送文件  
-                //sendFile(protocol);  
-            }
+            //else if (protocol.Mode == FileRequestMode.Download)
+            //{
+            //客户端接收文件,对服务端来说是发送文件  
+            //sendFile(protocol);  
+            //}
         }
         //接收文件  
-        private void receiveFile(FileProtocol protocol)
+        private void receiveFile()
         {
             //获取远程客户端的位置  
-            IPEndPoint endPoint = client.Client.RemoteEndPoint as IPEndPoint;
-            IPAddress ip = endPoint.Address;
+            //IPEndPoint endPoint = client.Client.RemoteEndPoint as IPEndPoint;
+            //IPAddress ip = endPoint.Address;
 
             //使用新端口,获得远程用于接收文件的端口  
-            endPoint = new IPEndPoint(ip, protocol.Port);
+            //endPoint = new IPEndPoint(ip, protocol.Port);
 
             //连接到远程客户端  
-            TcpClient localClient;
+            //TcpClient localClient;
             try
             {
-                localClient = new TcpClient();
-                localClient.Connect(endPoint);
-
                 //获取发送文件的流  
-                NetworkStream streamToCLient = localClient.GetStream();
+                NetworkStream streamToCLient = client.GetStream();
 
                 //随机生成一个在当前目录下的文件名称  
-                string path = Environment.CurrentDirectory + "/" + generateFileName(protocol.FileName);
+                string path = Environment.CurrentDirectory + "//config.xml";
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
 
-                byte[] fileBuffer = new byte[1024];//每次收1KB  
+                //byte[] fileBuffer = new byte[1024];//每次收1KB  
                 FileStream fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
 
                 //从缓存Buffer中读入到文件流中  
@@ -135,17 +186,28 @@ namespace BrokenRailServer.SendReceiveFile
 
                     fs.Write(buffer, 0, bytesRead);
                     totalBytes += bytesRead;
-                    ShowMessage?.Invoke(string.Format("Receiving {0} bytes ...", totalBytes), DataLevel.Default);
+
+                    System.Windows.Application.Current.Dispatcher.Invoke(new Action(() =>
+                    {
+                        ShowMessage?.Invoke(string.Format("Receiving {0} bytes ...", totalBytes), DataLevel.Default);
+                    }));
                 } while (bytesRead > 0);
-                ShowMessage?.Invoke(string.Format("Total {0} bytes received,Done! ", totalBytes), DataLevel.Default);
+
+                System.Windows.Application.Current.Dispatcher.Invoke(new Action(() =>
+                {
+                    ShowMessage?.Invoke(string.Format("Total {0} bytes received,Done! ", totalBytes), DataLevel.Default);
+                }));
 
                 streamToClient.Dispose();
                 fs.Dispose();
-                localClient.Close();
+                client.Close();
             }
             catch (Exception ex)
             {
-                ShowMessage?.Invoke(ex.Message, DataLevel.Error);
+                System.Windows.Application.Current.Dispatcher.Invoke(new Action(() =>
+                {
+                    ShowMessage?.Invoke(ex.Message, DataLevel.Error);
+                }));
             }
 
 

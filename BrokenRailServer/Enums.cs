@@ -9,7 +9,8 @@ namespace BrokenRailServer
     public enum CommandType
     {
         RequestConfig = 0xA0,
-        AssignClientID = 0xA1
+        AssignClientID = 0xA1,
+        UploadConfig = 0xA2
     }
 
     public enum FileRequestMode

@@ -368,6 +368,12 @@ namespace BrokenRailServer
                                         sendFileThread.Start();
                                     }
                                     break;
+                                case (byte)CommandType.UploadConfig:
+                                    {
+                                        Thread recvFileThread = new Thread(receiveConfigFile);
+                                        recvFileThread.Start();
+                                    }
+                                    break;
                                 default:
                                     break;
                             }
@@ -378,6 +384,31 @@ namespace BrokenRailServer
             catch (Exception ee)
             {
                 MessageBox.Show("处理数据异常：" + ee.Message);
+            }
+        }
+
+        private void receiveConfigFile()
+        {
+            try
+            {
+                //获取远程客户端的位置  
+                //IPAddress ip = frd.ClientAddress;
+                IPAddress ip = IPAddress.Parse("127.0.0.1");
+                //使用新端口,获得远程用于接收文件的端口  
+                IPEndPoint endPoint = new IPEndPoint(ip, _fileReceivePort);
+                //连接到远程客户端  
+                TcpListener fileListener = new TcpListener(endPoint);
+                fileListener.Start(10);
+                TcpClient fileClient = fileListener.AcceptTcpClient();
+                this.Dispatcher.Invoke(new Action(() =>
+                {
+                    FileServer server = new FileServer(fileClient, AppendMessage);
+                    server.BeginRead();
+                }));
+            }
+            catch (Exception ee)
+            {
+                MessageBox.Show("发送配置文件异常：" + ee.Message);
             }
         }
 
@@ -565,7 +596,7 @@ namespace BrokenRailServer
             switch (apType)
             {
                 case AccessPointType.Default:
-                    return "未付值";
+                    return "未赋值";
                 case AccessPointType.Terminal:
                     return "终端";
                 case AccessPointType.PCClient:
@@ -573,7 +604,7 @@ namespace BrokenRailServer
                 case AccessPointType.AndroidClient:
                     return "手机";
                 default:
-                    return "未付值";
+                    return "未赋值";
             }
         }
         private void SendData(TerminalAndClientUserControl frd, string data)
