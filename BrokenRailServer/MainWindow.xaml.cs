@@ -103,7 +103,7 @@ namespace BrokenRailServer
             }
             catch (Exception ee)
             {
-                MessageBox.Show("主窗口构造异常：" + ee.Message);
+                AppendMessage("主窗口构造异常：" + ee.Message, DataLevel.Error);
             }
         }
         private void btnClear_Click(object sender, RoutedEventArgs e)
@@ -130,7 +130,7 @@ namespace BrokenRailServer
                     {
                         if (item.SocketImport == null)
                         {
-                            MessageBox.Show(item.lblIpAndPort.Content + "网络未连接！");
+                            AppendMessage(item.lblIpAndPort.Content + "网络未连接！", DataLevel.Error);
                             continue;
                         }
                         SendData(item, strSend);
@@ -144,7 +144,7 @@ namespace BrokenRailServer
             }
             catch (Exception ee)
             {
-                MessageBox.Show("发送异常：" + ee.Message);
+                AppendMessage("发送异常：" + ee.Message, DataLevel.Error);
             }
         }
 
@@ -230,7 +230,7 @@ namespace BrokenRailServer
             }
             catch (Exception ee)
             {
-                MessageBox.Show("开始监听异常：" + ee.Message);
+                AppendMessage("开始监听异常：" + ee.Message, DataLevel.Error);
             }
         }
         private void AcceptCallBack(IAsyncResult ar)
@@ -263,7 +263,7 @@ namespace BrokenRailServer
             {
                 //在调用EndAcceptSocket方法时可能引发异常
                 //套接字Listener被关闭，则设置为未启动侦听状态
-                //MessageBox.Show(ee.Message);
+                //AppendMessage(ee.Message);
                 IsStart = false;
                 this.Dispatcher.Invoke(new Action(() => { this.btnStartListening.IsEnabled = true; }));
             }
@@ -303,7 +303,7 @@ namespace BrokenRailServer
             }
             catch (Exception ee)
             {
-                MessageBox.Show("接收回调异常：" + ee.Message);
+                AppendMessage("接收回调异常：" + ee.Message, DataLevel.Error);
                 this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
             }
         }
@@ -383,7 +383,7 @@ namespace BrokenRailServer
             }
             catch (Exception ee)
             {
-                MessageBox.Show("处理数据异常：" + ee.Message);
+                AppendMessage("处理数据异常：" + ee.Message, DataLevel.Error);
             }
         }
 
@@ -403,12 +403,13 @@ namespace BrokenRailServer
                 this.Dispatcher.Invoke(new Action(() =>
                 {
                     FileServer server = new FileServer(fileClient, AppendMessage);
+                    server.FreshDevices += devicesInitial;
                     server.BeginRead();
                 }));
             }
             catch (Exception ee)
             {
-                MessageBox.Show("发送配置文件异常：" + ee.Message);
+                AppendMessage("发送配置文件异常：" + ee.Message, DataLevel.Error);
             }
         }
 
@@ -433,7 +434,7 @@ namespace BrokenRailServer
             }
             catch (Exception ee)
             {
-                MessageBox.Show("发送配置文件异常：" + ee.Message);
+                AppendMessage("发送配置文件异常：" + ee.Message, DataLevel.Error);
             }
         }
 
@@ -544,6 +545,7 @@ namespace BrokenRailServer
                         //socket已经导入，注册socket。
                         SocketRegister.Add(intTerminalNo);
                         this.dataShowUserCtrl.AddShowData(intTerminalNo.ToString() + "号终端4G点Socket注册", DataLevel.Normal);
+                        item.Online();
                     }
                 }
             }
@@ -619,8 +621,11 @@ namespace BrokenRailServer
             }
             catch (Exception ee)
             {
-                MessageBox.Show("发送数据异常：" + ee.Message);
-                this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
+                this.Dispatcher.Invoke(new Action(() =>
+                {
+                    RemoveMethod(frd);
+                    AppendMessage("发送数据异常：" + ee.Message, DataLevel.Error);
+                }));
             }
         }
 
@@ -635,8 +640,11 @@ namespace BrokenRailServer
             }
             catch (Exception ee)
             {
-                MessageBox.Show("发送数据异常：" + ee.Message);
-                this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
+                this.Dispatcher.Invoke(new Action(() =>
+                {
+                    RemoveMethod(frd);
+                    AppendMessage("发送数据异常：" + ee.Message, DataLevel.Error);
+                }));
             }
         }
 
@@ -834,18 +842,18 @@ namespace BrokenRailServer
                     {
                         if (neighbourSmall != 0)
                         {
-                            MessageBox.Show("第一个终端的NeighbourSmall标签未设置为0");
+                            AppendMessage("第一个终端的NeighbourSmall标签未设置为0", DataLevel.Warning);
                         }
                     }
                     else
                     {
                         if (MasterControlList[i - 1].TerminalNumber != neighbourSmall)
                         {
-                            MessageBox.Show("终端" + terminalNo.ToString() + "的小相邻终端不匹配，请检查配置文件");
+                            AppendMessage("终端" + terminalNo.ToString() + "的小相邻终端不匹配，请检查配置文件", DataLevel.Warning);
                         }
                         if (oneMasterControl.TerminalNumber != neighbourBigRemember)
                         {
-                            MessageBox.Show("终端" + MasterControlList[i - 1].TerminalNumber.ToString() + "的大相邻终端不匹配，请检查配置文件");
+                            AppendMessage("终端" + MasterControlList[i - 1].TerminalNumber.ToString() + "的大相邻终端不匹配，请检查配置文件", DataLevel.Warning);
                         }
                     }
                     oneMasterControl.NeighbourSmall = neighbourSmall;
@@ -867,7 +875,7 @@ namespace BrokenRailServer
                         oneMasterControl.NeighbourBig = 0xff;
                         if (!(innerTextNeighbourBig == "ff" || innerTextNeighbourBig == "FF"))
                         {
-                            MessageBox.Show("最末终端" + terminalNo.ToString() + "的大相邻终端不是ff，请检查配置文件");
+                            AppendMessage("最末终端" + terminalNo.ToString() + "的大相邻终端不是ff，请检查配置文件", DataLevel.Warning);
                         }
                     }
                     i++;
@@ -886,7 +894,7 @@ namespace BrokenRailServer
             }
             catch (Exception ee)
             {
-                MessageBox.Show("设备初始化异常：" + ee.Message);
+                AppendMessage("设备初始化异常：" + ee.Message, DataLevel.Error);
             }
         }
 

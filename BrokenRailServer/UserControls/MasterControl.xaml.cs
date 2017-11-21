@@ -527,6 +527,16 @@ namespace BrokenRailServer.UserControls
             this.contextMenu.Visibility = Visibility.Hidden;
         }
 
+        public void Online()
+        {
+            this.path4G.Fill = new SolidColorBrush(Colors.Green);
+        }
+
+        public void Offline()
+        {
+            this.path4G.Fill = new SolidColorBrush(Colors.Red);
+        }
+
         #region INotifyPropertyChanged Members
 
         public event PropertyChangedEventHandler PropertyChanged;

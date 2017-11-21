@@ -20,6 +20,8 @@ namespace BrokenRailServer.SendReceiveFile
         private ProtocolHandler handler;
         public delegate void ShowMessageEventHandler(string str, DataLevel level);
         public event ShowMessageEventHandler ShowMessage;
+        public delegate void FreshDevicesEventHandler();
+        public event FreshDevicesEventHandler FreshDevices;
 
 
         public FileServer(TcpClient client, ShowMessageEventHandler showMsg)
@@ -64,6 +66,7 @@ namespace BrokenRailServer.SendReceiveFile
                     System.Windows.Application.Current.Dispatcher.Invoke(new Action(() =>
                     {
                         ShowMessage?.Invoke("Client offline.", DataLevel.Error);
+                        FreshDevices?.Invoke();
                     }));
                     client.Close();
                     totalBytes = 0;
