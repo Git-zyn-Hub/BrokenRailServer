@@ -22,6 +22,7 @@ namespace BrokenRailServer.SendReceiveFile
         public event ShowMessageEventHandler ShowMessage;
         public delegate void FreshDevicesEventHandler();
         public event FreshDevicesEventHandler FreshDevices;
+        public TcpListener Listener { get; set; }
 
 
         public FileServer(TcpClient client, ShowMessageEventHandler showMsg)
@@ -61,6 +62,7 @@ namespace BrokenRailServer.SendReceiveFile
                         ShowMessage?.Invoke(string.Format("Reading data,{0} bytes...", bytesRead), DataLevel.Default);
                     }
                 }));
+                //连接已断开
                 if (bytesRead == 0)
                 {
                     System.Windows.Application.Current.Dispatcher.Invoke(new Action(() =>
@@ -69,6 +71,10 @@ namespace BrokenRailServer.SendReceiveFile
                         FreshDevices?.Invoke();
                     }));
                     client.Close();
+                    if (Listener != null)
+                    {
+                        Listener.Stop();
+                    }
                     totalBytes = 0;
                     return;
                 }
@@ -281,6 +287,10 @@ namespace BrokenRailServer.SendReceiveFile
                 stream.Dispose();
                 fs.Dispose();
                 client.Close();
+                if (Listener != null)
+                {
+                    Listener.Stop();
+                }
                 //listener.Stop();
             }
         }

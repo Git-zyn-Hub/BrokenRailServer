@@ -303,8 +303,12 @@ namespace BrokenRailServer
             }
             catch (Exception ee)
             {
-                AppendMessage("接收回调异常：" + ee.Message, DataLevel.Error);
-                this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
+
+                this.Dispatcher.Invoke(new Action(() =>
+                {
+                    RemoveMethod(frd);
+                    AppendMessage("接收回调异常：" + ee.Message, DataLevel.Error);
+                }));
             }
         }
 
@@ -404,12 +408,16 @@ namespace BrokenRailServer
                 {
                     FileServer server = new FileServer(fileClient, AppendMessage);
                     server.FreshDevices += devicesInitial;
+                    server.Listener = fileListener;
                     server.BeginRead();
                 }));
             }
             catch (Exception ee)
             {
-                AppendMessage("发送配置文件异常：" + ee.Message, DataLevel.Error);
+                this.Dispatcher.Invoke(new Action(() =>
+                {
+                    AppendMessage("接收配置文件异常：" + ee.Message, DataLevel.Error);
+                }));
             }
         }
 
@@ -429,12 +437,16 @@ namespace BrokenRailServer
                 this.Dispatcher.Invoke(new Action(() =>
                 {
                     FileServer server = new FileServer(fileClient, AppendMessage);
+                    server.Listener = fileListener;
                     server.SendFile(AppDomain.CurrentDomain.BaseDirectory + "\\config.xml");
                 }));
             }
             catch (Exception ee)
             {
-                AppendMessage("发送配置文件异常：" + ee.Message, DataLevel.Error);
+                this.Dispatcher.Invoke(new Action(() =>
+                {
+                    AppendMessage("发送配置文件异常：" + ee.Message, DataLevel.Error);
+                }));
             }
         }
 
@@ -873,9 +885,10 @@ namespace BrokenRailServer
                     if (isEnd)
                     {
                         oneMasterControl.NeighbourBig = 0xff;
-                        if (!(innerTextNeighbourBig == "ff" || innerTextNeighbourBig == "FF"))
+                        int neighbourBig = Convert.ToInt32(innerTextNeighbourBig);
+                        if (neighbourBig != 255)
                         {
-                            AppendMessage("最末终端" + terminalNo.ToString() + "的大相邻终端不是ff，请检查配置文件", DataLevel.Warning);
+                            AppendMessage("最末终端" + terminalNo.ToString() + "的大相邻终端不是255，请检查配置文件", DataLevel.Warning);
                         }
                     }
                     i++;
