@@ -167,7 +167,7 @@ namespace BrokenRailServer
 
 
         //在列表中写字符串的委托方法
-        private void AppendMessage(string str, DataLevel level)
+        public void AppendMessage(string str, DataLevel level)
         {
             dataShowUserCtrl.AddShowData(str, level);
         }
@@ -196,17 +196,19 @@ namespace BrokenRailServer
                     friends.Remove(frd);
                 }
                 frd.Dispose();
+                disregistSocket(frd);
                 AppendOfflineMsg(frd);
             }
         }
 
         private void clearFriends()
         {
-            foreach (TerminalAndClientUserControl item in friends)
+            while (friends.Count != 0)
             {
-                item.Dispose();
+                RemoveMethod(friends[0] as TerminalAndClientUserControl);
             }
-            stpIpAndPortContainer.Children.Clear();
+            //item.Dispose();
+            //stpIpAndPortContainer.Children.Clear();
             friends.Clear();
         }
 
@@ -368,12 +370,14 @@ namespace BrokenRailServer
                             {
                                 case (byte)CommandType.RequestConfig:
                                     {
+                                        AppendMessage(data[3] + "号设备下载配置文件", DataLevel.Default);
                                         Thread sendFileThread = new Thread(sendConfigFile);
                                         sendFileThread.Start();
                                     }
                                     break;
                                 case (byte)CommandType.UploadConfig:
                                     {
+                                        AppendMessage(data[3] + "号设备上传配置文件", DataLevel.Default);
                                         Thread recvFileThread = new Thread(receiveConfigFile);
                                         recvFileThread.Start();
                                     }
@@ -454,7 +458,7 @@ namespace BrokenRailServer
         {
             if (data.Length > 1)
             {
-                if (data[0] == 0x55 && data[1] == 0xaa)
+                if ((data[0] == 0x55 && data[1] == 0xaa) || (data[0] == 0x66 && data[1] == 0xcc))
                 {
                     return bytesToHexString(data, length);
                 }
@@ -532,10 +536,7 @@ namespace BrokenRailServer
                     this.Dispatcher.Invoke(new Action(() =>
                     {
                         frd.ClientID = intTerminalNo;
-                        if (!socketIsRegisted(intTerminalNo))
-                        {
-                            registSocket(frd, intTerminalNo);
-                        }
+                        registSocket(frd, intTerminalNo);
                     }));
                 }
             }
@@ -550,15 +551,16 @@ namespace BrokenRailServer
                     if (!item.Is4G)
                     {
                         AppendMessage("心跳包中包含的终端号" + intTerminalNo.ToString() + "所示终端不是4G点，\r\n请检查心跳数据内容配置或者config文档！", DataLevel.Error);
+                        return;
                     }
-                    else if (item.Terminal == null)
+                    else if (!socketIsRegisted(intTerminalNo))
                     {
-                        item.Terminal = frd;
                         //socket已经导入，注册socket。
+                        item.Terminal = frd;
                         SocketRegister.Add(intTerminalNo);
-                        this.dataShowUserCtrl.AddShowData(intTerminalNo.ToString() + "号终端4G点Socket注册", DataLevel.Normal);
-                        item.Online();
+                        AppendMessage(intTerminalNo.ToString() + "号终端4G点Socket注册", DataLevel.Normal);
                     }
+                    item.Online();
                 }
             }
         }
@@ -603,6 +605,22 @@ namespace BrokenRailServer
             string header = GetAccessPointTypeString(frd.ApType);
             string msg = header + ":" + frd.ClientID + "下线";
             AppendMessage(msg, DataLevel.Error);
+        }
+
+        private void disregistSocket(TerminalAndClientUserControl frd)
+        {
+            if (frd.ApType == AccessPointType.Terminal && socketIsRegisted(frd.ClientID))
+            {
+                if (SocketRegister.Contains(frd.ClientID))
+                {
+                    SocketRegister.Remove(frd.ClientID);
+                }
+                int index = FindMasterControlIndex(frd.ClientID);
+                if (index != -1)
+                {
+                    MasterControlList[index].Offline();
+                }
+            }
         }
 
         public string GetAccessPointTypeString(AccessPointType apType)
@@ -693,10 +711,10 @@ namespace BrokenRailServer
                 return;
             listener.Stop();
             IsStart = false;
-            AppendMessage("已经结束了服务器的侦听！", DataLevel.Error);
             clearFriends();
             this.btnStartListening.IsEnabled = true;
             resetClientIDStack();
+            AppendMessage("已经结束了服务器的侦听！", DataLevel.Error);
         }
 
         private void resetClientIDStack()

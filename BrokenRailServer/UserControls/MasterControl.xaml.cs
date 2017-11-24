@@ -18,6 +18,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace BrokenRailServer.UserControls
 {
@@ -35,6 +36,7 @@ namespace BrokenRailServer.UserControls
         private MainWindow _mainWin;
         public static readonly DependencyProperty Is4GProperty = DependencyProperty.Register("Is4G", typeof(bool), typeof(MasterControl), new PropertyMetadata(false, OnIs4GChanged));
         private TerminalAndClientUserControl _terminal = null;
+        private DispatcherTimer _offlineTimer;
 
         public bool Is4G
         {
@@ -145,7 +147,17 @@ namespace BrokenRailServer.UserControls
         {
             InitializeComponent();
             _mainWin = mainWin;
+            _offlineTimer = new DispatcherTimer();
+            _offlineTimer.Interval = new TimeSpan(0, 2, 5);
+            _offlineTimer.Tick += offlineTimer_Tick;
         }
+
+        private void offlineTimer_Tick(object sender, EventArgs e)
+        {
+            _mainWin.AppendMessage("终端" + TerminalNumber + "超过2分钟没有收到心跳包，可能已经下线", DataLevel.Error);
+            Offline();
+        }
+
         private static void OnIs4GChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if ((bool)e.NewValue == true)
@@ -180,12 +192,12 @@ namespace BrokenRailServer.UserControls
                         _mainWin.WaitingRingDisable();
                         //_mainWin.WaitReceiveTimer.Stop();
                     }
-                    MessageBox.Show(Find4GErrorMsg);
+                    _mainWin.AppendMessage(Find4GErrorMsg, DataLevel.Error);
                 }
             }
             catch (Exception ee)
             {
-                MessageBox.Show(ee.Message);
+                _mainWin.AppendMessage(ee.Message, DataLevel.Error);
             }
         }
 
@@ -200,12 +212,12 @@ namespace BrokenRailServer.UserControls
         //        }
         //        else
         //        {
-        //            MessageBox.Show("Socket未导入！");
+        //            _mainWin.AppendMessage("Socket未导入！");
         //        }
         //    }
         //    catch (Exception ee)
         //    {
-        //        MessageBox.Show(ee.Message);
+        //        _mainWin.AppendMessage(ee.Message);
         //    }
         //}
 
@@ -268,12 +280,12 @@ namespace BrokenRailServer.UserControls
                 }
                 else
                 {
-                    MessageBox.Show(Find4GErrorMsg);
+                    _mainWin.AppendMessage(Find4GErrorMsg, DataLevel.Error);
                 }
             }
             catch (Exception ee)
             {
-                MessageBox.Show(ee.Message);
+                _mainWin.AppendMessage(ee.Message, DataLevel.Error);
             }
         }
 
@@ -300,12 +312,12 @@ namespace BrokenRailServer.UserControls
                         _mainWin.WaitingRingDisable();
                         //_mainWin.WaitReceiveTimer.Stop();
                     }
-                    MessageBox.Show(Find4GErrorMsg);
+                    _mainWin.AppendMessage(Find4GErrorMsg, DataLevel.Error);
                 }
             }
             catch (Exception ee)
             {
-                MessageBox.Show(ee.Message);
+                _mainWin.AppendMessage(ee.Message, DataLevel.Error);
             }
         }
 
@@ -334,12 +346,12 @@ namespace BrokenRailServer.UserControls
         //        }
         //        else
         //        {
-        //            MessageBox.Show(Find4GErrorMsg);
+        //            _mainWin.AppendMessage(Find4GErrorMsg);
         //        }
         //    }
         //    catch (Exception ee)
         //    {
-        //        MessageBox.Show(ee.Message);
+        //        _mainWin.AppendMessage(ee.Message);
         //    }
         //}
 
@@ -367,12 +379,12 @@ namespace BrokenRailServer.UserControls
                 }
                 else
                 {
-                    MessageBox.Show(Find4GErrorMsg);
+                    _mainWin.AppendMessage(Find4GErrorMsg, DataLevel.Error);
                 }
             }
             catch (Exception ee)
             {
-                MessageBox.Show(ee.Message);
+                _mainWin.AppendMessage(ee.Message, DataLevel.Error);
             }
         }
 
@@ -400,7 +412,7 @@ namespace BrokenRailServer.UserControls
             }
             else
             {
-                MessageBox.Show(Find4GErrorMsg);
+                _mainWin.AppendMessage(Find4GErrorMsg, DataLevel.Error);
             }
         }
 
@@ -529,12 +541,23 @@ namespace BrokenRailServer.UserControls
 
         public void Online()
         {
+            if (_offlineTimer.IsEnabled)
+            {
+                _offlineTimer.Stop();
+                _offlineTimer.Start();
+            }
+            else
+            {
+                _offlineTimer.Start();
+            }
             this.path4G.Fill = new SolidColorBrush(Colors.Green);
         }
 
         public void Offline()
         {
             this.path4G.Fill = new SolidColorBrush(Colors.Red);
+            if (_offlineTimer.IsEnabled)
+                _offlineTimer.Stop();
         }
 
         #region INotifyPropertyChanged Members
