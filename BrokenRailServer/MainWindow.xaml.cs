@@ -186,7 +186,7 @@ namespace BrokenRailServer
             int i = friends.IndexOf(frd);
             if (i != -1)
             {
-                if (!_clientIDStack.Contains(frd.ClientID))
+                if (!_clientIDStack.Contains(frd.ClientID) && frd.ClientID != 0)
                 {
                     _clientIDStack.Push(frd.ClientID);
                 }
@@ -511,6 +511,7 @@ namespace BrokenRailServer
                             frd.ClientID = (int)_clientIDStack.Pop();
                             byte[] sendData = SendDataPackage.PackageSendData(0xff, (byte)frd.ClientID, (byte)CommandType.AssignClientID, new byte[0]);
                             SendData(frd, sendData);
+                            AppendOnlineMsg(frd);
                         }
                         else
                         {
@@ -605,6 +606,16 @@ namespace BrokenRailServer
             string header = GetAccessPointTypeString(frd.ApType);
             string msg = header + ":" + frd.ClientID + "下线";
             AppendMessage(msg, DataLevel.Error);
+        }
+
+        private void AppendOnlineMsg(TerminalAndClientUserControl frd)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("为");
+            sb.Append(GetAccessPointTypeString(frd.ApType));
+            sb.Append("分配用户ID：");
+            sb.Append(frd.ClientID);
+            AppendMessage(sb.ToString(), DataLevel.Normal);
         }
 
         private void disregistSocket(TerminalAndClientUserControl frd)
