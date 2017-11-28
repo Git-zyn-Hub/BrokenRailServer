@@ -31,6 +31,7 @@ namespace BrokenRailServer
         public IPAddress ClientAddress { get; set; }
 
         public byte[] Rcvbuffer;
+        private string _ipAndPort;
 
         public AccessPointType ApType
         {
@@ -82,6 +83,18 @@ namespace BrokenRailServer
                 }
             }
         }
+        public string IpAndPort
+        {
+            get
+            {
+                return _ipAndPort;
+            }
+
+            set
+            {
+                _ipAndPort = value;
+            }
+        }
 
         //清空接受缓存，在每一次新的接收之前都要调用该方法
         public void ClearBuffer()
@@ -113,7 +126,24 @@ namespace BrokenRailServer
             InitializeComponent();
             this.SocketImport = socket;
             this.DataContext = this;
-            this.lblIpAndPort.Content = socket.RemoteEndPoint.ToString();
+            IpAndPort = socket.RemoteEndPoint.ToString();
+            this.lblIpAndPort.Content = IpAndPort;
+        }
+
+        public void TerminalOnline()
+        {
+            if (ApType == AccessPointType.Terminal)
+            {
+                this.pathAccessPoint.Fill = new SolidColorBrush(Colors.Green);
+            }
+        }
+
+        public void TerminalOffline()
+        {
+            if (ApType == AccessPointType.Terminal)
+            {
+                this.pathAccessPoint.Fill = new SolidColorBrush(Colors.Red);
+            }
         }
 
         #region INotifyPropertyChanged Members

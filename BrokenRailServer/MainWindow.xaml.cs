@@ -196,7 +196,7 @@ namespace BrokenRailServer
                     friends.Remove(frd);
                 }
                 frd.Dispose();
-                disregistSocket(frd);
+                disregistSocketAndOfflineTerminal(frd);
                 AppendOfflineMsg(frd);
             }
         }
@@ -210,6 +210,19 @@ namespace BrokenRailServer
             //item.Dispose();
             //stpIpAndPortContainer.Children.Clear();
             friends.Clear();
+        }
+
+        private void clearTerminal()
+        {
+            for (int i = 0; i < friends.Count; i++)
+            {
+                TerminalAndClientUserControl tOrC = friends[i] as TerminalAndClientUserControl;
+                if (tOrC.ApType == AccessPointType.Terminal)
+                {
+                    RemoveMethod(tOrC);
+                    i--;
+                }
+            }
         }
 
         private void btnStartListening_Click(object sender, RoutedEventArgs e)
@@ -537,13 +550,14 @@ namespace BrokenRailServer
                     this.Dispatcher.Invoke(new Action(() =>
                     {
                         frd.ClientID = intTerminalNo;
-                        registSocket(frd, intTerminalNo);
+                        removeRepeatTerminal(frd, intTerminalNo);
+                        registSocketAndOnlineTerminal(frd, intTerminalNo);
                     }));
                 }
             }
         }
 
-        private void registSocket(TerminalAndClientUserControl frd, int intTerminalNo)
+        private void registSocketAndOnlineTerminal(TerminalAndClientUserControl frd, int intTerminalNo)
         {
             foreach (var item in MasterControlList)
             {
@@ -562,6 +576,7 @@ namespace BrokenRailServer
                         AppendMessage(intTerminalNo.ToString() + "号终端4G点Socket注册", DataLevel.Normal);
                     }
                     item.Online();
+                    frd.TerminalOnline();
                 }
             }
         }
@@ -604,7 +619,7 @@ namespace BrokenRailServer
         private void AppendOfflineMsg(TerminalAndClientUserControl frd)
         {
             string header = GetAccessPointTypeString(frd.ApType);
-            string msg = header + ":" + frd.ClientID + "下线";
+            string msg = header + frd.ClientID + ":" + frd.IpAndPort + "下线";
             AppendMessage(msg, DataLevel.Error);
         }
 
@@ -618,7 +633,7 @@ namespace BrokenRailServer
             AppendMessage(sb.ToString(), DataLevel.Normal);
         }
 
-        private void disregistSocket(TerminalAndClientUserControl frd)
+        private void disregistSocketAndOfflineTerminal(TerminalAndClientUserControl frd)
         {
             if (frd.ApType == AccessPointType.Terminal && socketIsRegisted(frd.ClientID))
             {
@@ -630,6 +645,23 @@ namespace BrokenRailServer
                 if (index != -1)
                 {
                     MasterControlList[index].Offline();
+                }
+                frd.TerminalOffline();
+            }
+        }
+
+        private void removeRepeatTerminal(TerminalAndClientUserControl frd, int terminalNo)
+        {
+            for (int i = 0; i < friends.Count; i++)
+            {
+                TerminalAndClientUserControl terminal = friends[i] as TerminalAndClientUserControl;
+                if (terminal != null && terminal.ApType == AccessPointType.Terminal)
+                {
+                    if (terminal.ClientID == terminalNo && terminal.IpAndPort != frd.IpAndPort)
+                    {
+                        RemoveMethod(terminal);
+                        break;
+                    }
                 }
             }
         }
@@ -813,6 +845,11 @@ namespace BrokenRailServer
         {
             try
             {
+                clearTerminal();
+                foreach (var item in MasterControlList)
+                {
+                    item.Dispose();
+                }
                 this.MasterControlList.Clear();
                 _4GPointIndex.Clear();
                 _sendTime.Clear();
@@ -932,7 +969,7 @@ namespace BrokenRailServer
                 this._svtThumbnail.SetValue(VerticalAlignmentProperty, VerticalAlignment.Bottom);
                 this._svtThumbnail.SetValue(MarginProperty, new Thickness(20, 0, 20, 0));
                 //重新刷新之后需要清空Socket注册。
-                //SocketRegister.Clear();
+                SocketRegister.Clear();
             }
             catch (Exception ee)
             {

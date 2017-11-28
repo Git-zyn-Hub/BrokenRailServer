@@ -135,7 +135,7 @@ namespace BrokenRailServer.UserControls
             set
             {
                 _terminal = value;
-                IpAndPort = _terminal.SocketImport.RemoteEndPoint.ToString();
+                //IpAndPort = _terminal.SocketImport.RemoteEndPoint.ToString();
             }
         }
 
@@ -154,8 +154,9 @@ namespace BrokenRailServer.UserControls
 
         private void offlineTimer_Tick(object sender, EventArgs e)
         {
-            _mainWin.AppendMessage("终端" + TerminalNumber + "超过2分钟没有收到心跳包，可能已经下线", DataLevel.Error);
+            _mainWin.AppendMessage("超过2分钟没有收到终端" + TerminalNumber + "的心跳包，它可能已经下线", DataLevel.Error);
             Offline();
+            Terminal.TerminalOffline();
         }
 
         private static void OnIs4GChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -558,6 +559,23 @@ namespace BrokenRailServer.UserControls
             this.path4G.Fill = new SolidColorBrush(Colors.Red);
             if (_offlineTimer.IsEnabled)
                 _offlineTimer.Stop();
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (_offlineTimer.IsEnabled)
+                    _offlineTimer.Stop();
+                //if (Terminal != null)
+                //{
+                //    Terminal.Dispose();
+                //}
+            }
+            finally
+            {
+                _offlineTimer = null;
+            }
         }
 
         #region INotifyPropertyChanged Members
