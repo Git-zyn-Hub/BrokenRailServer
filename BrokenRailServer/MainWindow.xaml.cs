@@ -331,6 +331,20 @@ namespace BrokenRailServer
         {
             if (sourceFriend.ApType == AccessPointType.Terminal)
             {
+                if (length > 1)
+                {
+                    if (sourceFriend.Rcvbuffer[0] != 0x66 || sourceFriend.Rcvbuffer[1] != 0xcc)
+                    {
+                        if (sourceFriend.Rcvbuffer[0] == 0x23 && sourceFriend.Rcvbuffer[1] == 0x23)
+                        {
+                            //0x23是#的ASCII码。
+                        }
+                        else
+                        {
+                            return;
+                        }
+                    }
+                }
                 foreach (var item in friends)
                 {
                     TerminalAndClientUserControl destFriend = item as TerminalAndClientUserControl;
@@ -342,8 +356,15 @@ namespace BrokenRailServer
                     }
                 }
             }
-            else if (sourceFriend.ApType == AccessPointType.PCClient)
+            else if (sourceFriend.ApType == AccessPointType.PCClient || sourceFriend.ApType == AccessPointType.AndroidClient)
             {
+                if (length > 1)
+                {
+                    if (sourceFriend.Rcvbuffer[0] != 0x55 || sourceFriend.Rcvbuffer[1] != 0xaa)
+                    {
+                        return;
+                    }
+                }
                 foreach (var item in friends)
                 {
                     TerminalAndClientUserControl destFriend = item as TerminalAndClientUserControl;
