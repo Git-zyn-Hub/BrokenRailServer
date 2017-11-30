@@ -37,6 +37,7 @@ namespace BrokenRailServer.UserControls
         public static readonly DependencyProperty Is4GProperty = DependencyProperty.Register("Is4G", typeof(bool), typeof(MasterControl), new PropertyMetadata(false, OnIs4GChanged));
         private TerminalAndClientUserControl _terminal = null;
         private DispatcherTimer _offlineTimer;
+        private bool _isOnline = false;
 
         public bool Is4G
         {
@@ -136,6 +137,19 @@ namespace BrokenRailServer.UserControls
             {
                 _terminal = value;
                 //IpAndPort = _terminal.SocketImport.RemoteEndPoint.ToString();
+            }
+        }
+
+        public bool IsOnline
+        {
+            get
+            {
+                return _isOnline;
+            }
+
+            set
+            {
+                _isOnline = value;
             }
         }
 
@@ -553,11 +567,13 @@ namespace BrokenRailServer.UserControls
                 _offlineTimer.Start();
             }
             this.path4G.Fill = new SolidColorBrush(Colors.Green);
+            IsOnline = true;
         }
 
         public void Offline()
         {
             this.path4G.Fill = new SolidColorBrush(Colors.Red);
+            IsOnline = false;
             if (_offlineTimer.IsEnabled)
                 _offlineTimer.Stop();
         }

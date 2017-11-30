@@ -11,6 +11,7 @@
         Title="断轨服务器" 
         Height="700" Width="1000"
         MinHeight="400" MinWidth="700"
+        Closed="Window_Closed"
         Loaded="Window_Loaded">
     <Grid>
         <TabControl>

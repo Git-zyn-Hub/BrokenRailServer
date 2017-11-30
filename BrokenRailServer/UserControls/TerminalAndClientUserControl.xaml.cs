@@ -146,6 +146,29 @@ namespace BrokenRailServer
             }
         }
 
+        public override string ToString()
+        {
+            string header = GetAccessPointTypeString(ApType);
+            return header + this.ClientID + ":" + this.IpAndPort;
+        }
+
+        public string GetAccessPointTypeString(AccessPointType apType)
+        {
+            switch (apType)
+            {
+                case AccessPointType.Default:
+                    return "未赋值";
+                case AccessPointType.Terminal:
+                    return "终端";
+                case AccessPointType.PCClient:
+                    return "电脑";
+                case AccessPointType.AndroidClient:
+                    return "手机";
+                default:
+                    return "未赋值";
+            }
+        }
+
         #region INotifyPropertyChanged Members
 
         public event PropertyChangedEventHandler PropertyChanged;

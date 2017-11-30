@@ -35,7 +35,7 @@ namespace BrokenRailServer
         private readonly int _fileReceivePort = 18527;
         private int _packageCount = 0;
         //保存与客户相关的信息列表
-        ArrayList friends = new ArrayList();
+        List<TerminalAndClientUserControl> friends = new List<TerminalAndClientUserControl>();
         //负责监听的套接字
         TcpListener listener;
         //只是是否启动了监听
@@ -300,7 +300,7 @@ namespace BrokenRailServer
                     {
                         string originData = preAnalyseData(frd.Rcvbuffer, i);
                         setTerminalNoAndRegistSocket(frd, originData);
-                        string data = string.Format("From[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), originData);
+                        string data = string.Format("From[{0}]:{1}", frd.ToString(), originData);
                         PackageCount++;
                         this.Dispatcher.Invoke(new Action(() =>
                         {
@@ -365,7 +365,7 @@ namespace BrokenRailServer
                         return;
                     }
                 }
-                foreach (var item in friends)
+                foreach (var item in decideDestFriends(sourceFriend, length))
                 {
                     TerminalAndClientUserControl destFriend = item as TerminalAndClientUserControl;
                     if (destFriend != null && destFriend.ApType == AccessPointType.Terminal)
@@ -376,6 +376,35 @@ namespace BrokenRailServer
                     }
                 }
             }
+        }
+
+        private List<TerminalAndClientUserControl> decideDestFriends(TerminalAndClientUserControl sourceFriend, int length)
+        {
+            List<TerminalAndClientUserControl> result = new List<TerminalAndClientUserControl>();
+            if (length > 5)
+            {
+                switch (sourceFriend.Rcvbuffer[5])
+                {
+                    case (byte)CommandType.ReadPointInfo:
+                        {
+                            int destTerminalNo = sourceFriend.Rcvbuffer[4];
+                            int indexDest = FindMasterControlIndex(destTerminalNo);
+
+                            for (int i = indexDest; i >= 0; i--)
+                            {
+                                if (MasterControlList[i].Is4G && MasterControlList[i].IsOnline)
+                                {
+                                    result.Add(MasterControlList[i].Terminal);
+                                    return result;
+                                }
+                            }
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+            return friends;
         }
 
         private void handleData(TerminalAndClientUserControl frd, int length)
@@ -710,7 +739,7 @@ namespace BrokenRailServer
                 byte[] msg = Encoding.UTF8.GetBytes(data);
                 AsyncCallback callback = new AsyncCallback(SendCallback);
                 frd.SocketImport.BeginSend(msg, 0, msg.Length, SocketFlags.None, callback, frd);
-                data = string.Format("To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), data);
+                data = string.Format("To[{0}]:{1}", frd.ToString(), data);
                 this.Dispatcher.Invoke(new Action(() => { AppendMessage(data, DataLevel.Default); }));
             }
             catch (Exception ee)
@@ -729,7 +758,7 @@ namespace BrokenRailServer
             {
                 AsyncCallback callback = new AsyncCallback(SendCallback);
                 frd.SocketImport.BeginSend(data, 0, data.Length, SocketFlags.None, callback, frd);
-                string msg = string.Format("To[{0}]:{1}", frd.SocketImport.RemoteEndPoint.ToString(), preAnalyseData(data, data.Length));
+                string msg = string.Format("To[{0}]:{1}", frd.ToString(), preAnalyseData(data, data.Length));
                 this.Dispatcher.Invoke(new Action(() => { AppendMessage(msg, DataLevel.Default); }));
             }
             catch (Exception ee)
@@ -1025,6 +1054,11 @@ namespace BrokenRailServer
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             devicesInitial();
+        }
+
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            Environment.Exit(0);
         }
 
         #region INotifyPropertyChanged Members
