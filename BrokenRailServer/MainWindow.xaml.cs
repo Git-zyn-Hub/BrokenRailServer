@@ -188,7 +188,10 @@ namespace BrokenRailServer
             {
                 if (!_clientIDStack.Contains(frd.ClientID) && frd.ClientID != 0)
                 {
-                    _clientIDStack.Push(frd.ClientID);
+                    if (frd.ApType == AccessPointType.PCClient || frd.ApType == AccessPointType.AndroidClient)
+                    {
+                        _clientIDStack.Push(frd.ClientID);
+                    }
                 }
                 stpIpAndPortContainer.Children.RemoveAt(i);
                 lock (friends)
@@ -381,7 +384,7 @@ namespace BrokenRailServer
         private List<TerminalAndClientUserControl> decideDestFriends(TerminalAndClientUserControl sourceFriend, int length)
         {
             List<TerminalAndClientUserControl> result = new List<TerminalAndClientUserControl>();
-            if (length > 5)
+            if (length > 6)
             {
                 switch (sourceFriend.Rcvbuffer[5])
                 {
@@ -400,6 +403,24 @@ namespace BrokenRailServer
                             }
                         }
                         break;
+                    case (byte)CommandType.RealTimeConfig:
+                        {
+                            int destTerminalNo = sourceFriend.Rcvbuffer[6];
+                            int indexDest = FindMasterControlIndex(destTerminalNo);
+
+                            for (int i = indexDest; i >= 0; i--)
+                            {
+                                if (MasterControlList[i].Is4G && MasterControlList[i].IsOnline)
+                                {
+                                    result.Add(MasterControlList[i].Terminal);
+                                    return result;
+                                }
+                            }
+                        }
+                        break;
+                    case (byte)CommandType.RequestConfig:
+                    case (byte)CommandType.UploadConfig:
+                        return result;
                     default:
                         break;
                 }
