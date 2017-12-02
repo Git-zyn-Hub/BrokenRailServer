@@ -110,7 +110,7 @@
                         </Menu>
                         <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
                             <Ellipse x:Name="elpIndicator" Fill="Green" Height="15" Width="15"></Ellipse>
-                            <Label x:Name="lblPackageCountCopy"></Label>
+                            <Label x:Name="lblPackageCountCopy" Content="{Binding PackageCount}"></Label>
                         </StackPanel>
                     </DockPanel>
                     <ScrollViewer x:Name="svContainer" Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden">
