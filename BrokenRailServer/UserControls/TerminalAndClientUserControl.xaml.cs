@@ -29,8 +29,10 @@ namespace BrokenRailServer
         private Socket _socketImport;
         private int _clientID = 0;
         public IPAddress ClientAddress { get; set; }
+        private int _accumulateNumber = 0;
 
         public byte[] Rcvbuffer;
+        public byte[] RememberBuffer;
         private string _ipAndPort;
 
         public AccessPointType ApType
@@ -167,6 +169,44 @@ namespace BrokenRailServer
                 default:
                     return "未赋值";
             }
+        }
+
+        public bool Recognize1024(int lengthOnce)
+        {
+            //V519发满1024字节之后会截断一下，在下一个1024字节继续发送
+            //long beforePlusRemainder = accumulateNumber % 1024;
+            _accumulateNumber += lengthOnce;
+            int afterPlusRemainder = _accumulateNumber % 1024;
+            if (afterPlusRemainder == 0)
+            {
+                //等于0的时候说明接收的字段跨过1024字节，再收一组数据。
+                //有一种特殊情况，就是收到1024字节的时候正好是一整包，这样进入判断的话就会将两个本来就应该分开的包连起来，这种情况没有处理。
+                return true;
+            }
+            return false;
+        }
+
+        public void RememberRecv(int length)
+        {
+            RememberBuffer = new byte[length];
+            Buffer.BlockCopy(this.Rcvbuffer, 0, RememberBuffer, 0, length);
+        }
+
+        public void MergeBuffer(int length2Merge)
+        {
+            _accumulateNumber = 0;
+            _accumulateNumber += length2Merge;
+            byte[] secondReceive = new byte[length2Merge];
+            for (int i = 0; i < length2Merge; i++)
+            {
+                secondReceive[i] = this.Rcvbuffer[i];
+            }
+            byte[] sumReceive = new byte[RememberBuffer.Length + length2Merge];
+            RememberBuffer.CopyTo(sumReceive, 0);
+            secondReceive.CopyTo(sumReceive, RememberBuffer.Length);
+            Rcvbuffer = new byte[sumReceive.Length];
+            sumReceive.CopyTo(Rcvbuffer, 0);
+            RememberBuffer = null;
         }
 
         #region INotifyPropertyChanged Members

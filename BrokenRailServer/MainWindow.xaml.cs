@@ -286,6 +286,7 @@ namespace BrokenRailServer
                 this.Dispatcher.Invoke(new Action(() => { this.btnStartListening.IsEnabled = true; }));
             }
         }
+        bool canMerge = false;
         private void ReceiveCallback(IAsyncResult ar)
         {
             TerminalAndClientUserControl frd = (TerminalAndClientUserControl)ar.AsyncState;
@@ -293,27 +294,48 @@ namespace BrokenRailServer
             {
                 if (frd != null && frd.SocketImport != null)
                 {
-                    int i = frd.SocketImport.EndReceive(ar);
-                    if (i == 0)
+                    int length = frd.SocketImport.EndReceive(ar);
+                    if (length == 0)
                     {
                         this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
                         return;
                     }
                     else
                     {
-                        string originData = preAnalyseData(frd.Rcvbuffer, i);
+                        if (frd.Recognize1024(length))
+                        {
+                            frd.RememberRecv(length);
+                            canMerge = true;
+                            this.Dispatcher.Invoke(new Action(() =>
+                            {
+                                AppendMessage("From[" + frd.ToString() + "]:累积收到1024字节", DataLevel.Warning);
+                            }));
+                            goto skipHandle;
+                        }
+                        if (canMerge)
+                        {
+                            frd.MergeBuffer(length);
+                            canMerge = false;
+                            this.Dispatcher.Invoke(new Action(() =>
+                            {
+                                AppendMessage("From[" + frd.ToString() + "]:发生合并", DataLevel.Warning);
+                            }));
+                            length = frd.Rcvbuffer.Length;
+                        }
+                        string originData = preAnalyseData(frd.Rcvbuffer, length);
                         setTerminalNoAndRegistSocket(frd, originData);
                         string data = string.Format("From[{0}]:{1}", frd.ToString(), originData);
                         PackageCount++;
                         this.Dispatcher.Invoke(new Action(() =>
                         {
                             AppendMessage(data, DataLevel.Default);
-                            handleData(frd, i);
+                            handleData(frd, length);
                             setAccessPointTypeAndClientID(frd, originData);
-                            transmitData(frd, i);
+                            transmitData(frd, length);
                             setLabelPackageCountColor();
                         }));
-                        frd.ClearBuffer();
+
+                        skipHandle: frd.ClearBuffer();
                         AsyncCallback callback = new AsyncCallback(ReceiveCallback);
                         frd.SocketImport.BeginReceive(frd.Rcvbuffer, 0, frd.Rcvbuffer.Length, SocketFlags.None, callback, frd);
                     }
