@@ -48,6 +48,7 @@ namespace BrokenRailServer
         private List<int> _4GPointIndex = new List<int>();
         private List<int> _socketRegister = new List<int>();
         private Stack _clientIDStack = new Stack();
+        private object lockObject = new object();
 
         public int PackageCount
         {
@@ -295,6 +296,11 @@ namespace BrokenRailServer
                 if (frd != null && frd.SocketImport != null)
                 {
                     int length = frd.SocketImport.EndReceive(ar);
+
+                    this.Dispatcher.Invoke(new Action(() =>
+                    {
+                        AppendMessage("处理前长度" + length, DataLevel.Normal);
+                    }));
                     if (length == 0)
                     {
                         this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
@@ -302,6 +308,13 @@ namespace BrokenRailServer
                     }
                     else
                     {
+                        //this.Dispatcher.Invoke(new Action(() =>
+                        //{
+                        //    string originDataDebug = bytesToHexString(frd.Rcvbuffer, length);
+                        //    string dataDebug = string.Format("From[{0}]:{1}", frd.ToString(), originDataDebug);
+                        //    AppendMessage(dataDebug, DataLevel.Default);
+                        //}));
+
                         if (frd.Recognize1024(length))
                         {
                             frd.RememberRecv(length);
@@ -321,19 +334,55 @@ namespace BrokenRailServer
                                 AppendMessage("From[" + frd.ToString() + "]:发生合并", DataLevel.Warning);
                             }));
                             length = frd.Rcvbuffer.Length;
+                            this.Dispatcher.Invoke(new Action(() =>
+                            {
+                                AppendMessage("合并后长度" + length, DataLevel.Default);
+                            }));
                         }
-                        string originData = preAnalyseData(frd.Rcvbuffer, length);
-                        setTerminalNoAndRegistSocket(frd, originData);
-                        string data = string.Format("From[{0}]:{1}", frd.ToString(), originData);
-                        PackageCount++;
-                        this.Dispatcher.Invoke(new Action(() =>
+
+                        lock (lockObject)
                         {
-                            AppendMessage(data, DataLevel.Default);
-                            handleData(frd, length);
-                            setAccessPointTypeAndClientID(frd, originData);
-                            transmitData(frd, length);
-                            setLabelPackageCountColor();
-                        }));
+
+                            handleNianBao: bool nianBao = frd.HandleNianBao(ref length);
+
+                            this.Dispatcher.Invoke(new Action(() =>
+                            {
+                                AppendMessage("处理后长度" + length, DataLevel.Error);
+                            }));
+
+                            string originData = preAnalyseData(frd.Rcvbuffer, length);
+                            setTerminalNoAndRegistSocket(frd, originData);
+                            string data = string.Format("From[{0}]:{1}", frd.ToString(), originData);
+                            PackageCount++;
+                            this.Dispatcher.Invoke(new Action(() =>
+                            {
+                                AppendMessage(data, DataLevel.Default);
+                                handleData(frd, length);
+                                setAccessPointTypeAndClientID(frd, originData);
+                                transmitData(frd, length);
+                                setLabelPackageCountColor();
+                            }));
+
+                            if (nianBao)
+                            {
+                                if (frd.CopyArray4Circle(ref length))
+                                {
+                                    this.Dispatcher.Invoke(new Action(() =>
+                                    {
+                                        AppendMessage("From[" + frd.ToString() + "]:粘包拆分", DataLevel.Warning);
+                                        AppendMessage("未处理长度" + length, DataLevel.Normal);
+                                    }));
+                                    if (length >= 1018)//1018是一个历史数据返回包的长度
+                                    {
+                                        goto handleNianBao;
+                                    }
+                                }
+                                if (length == 10 && frd.Rcvbuffer[0] == 0x66 && frd.Rcvbuffer[1] == 0xcc)
+                                {
+                                    goto handleNianBao;
+                                }
+                            }
+                        }
 
                         skipHandle: frd.ClearBuffer();
                         AsyncCallback callback = new AsyncCallback(ReceiveCallback);
@@ -568,9 +617,16 @@ namespace BrokenRailServer
                 {
                     return bytesToHexString(data, length);
                 }
-                else
+                else if ((data[0] == Encoding.UTF8.GetBytes("C")[0] && data[1] == Encoding.UTF8.GetBytes("l")[0])
+                    || (data[0] == Encoding.UTF8.GetBytes("电")[0] && data[1] == Encoding.UTF8.GetBytes("电")[1])
+                    || (data[0] == Encoding.UTF8.GetBytes("手")[0] && data[1] == Encoding.UTF8.GetBytes("手")[1])
+                    || (data[0] == Encoding.UTF8.GetBytes("#")[0] && data[1] == Encoding.UTF8.GetBytes("#")[0]))
                 {
                     return Encoding.UTF8.GetString(data, 0, length);
+                }
+                else
+                {
+                    return bytesToHexString(data, length);
                 }
             }
             return null;
@@ -630,7 +686,7 @@ namespace BrokenRailServer
 
         private void setTerminalNoAndRegistSocket(TerminalAndClientUserControl frd, string data)
         {
-            if (data.Length > 5)
+            if (data != null && data.Length > 5)
             {
                 string strReceiveFirst3Letter = data.Substring(0, 3);
                 if (strReceiveFirst3Letter == "###")

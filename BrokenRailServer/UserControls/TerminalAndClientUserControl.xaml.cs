@@ -33,7 +33,9 @@ namespace BrokenRailServer
 
         public byte[] Rcvbuffer;
         public byte[] RememberBuffer;
+        public List<byte[]> RememberBuffers = new List<byte[]>();
         private string _ipAndPort;
+        private byte[] _packageUnhandled = new byte[0];
 
         public AccessPointType ApType
         {
@@ -101,7 +103,7 @@ namespace BrokenRailServer
         //清空接受缓存，在每一次新的接收之前都要调用该方法
         public void ClearBuffer()
         {
-            Rcvbuffer = new byte[1024];
+            Rcvbuffer = new byte[2048];
         }
         public void Dispose()
         {
@@ -175,6 +177,10 @@ namespace BrokenRailServer
         {
             //V519发满1024字节之后会截断一下，在下一个1024字节继续发送
             //long beforePlusRemainder = accumulateNumber % 1024;
+            //if (lengthOnce == 1500)
+            //{
+            //    return true;
+            //}
             _accumulateNumber += lengthOnce;
             int afterPlusRemainder = _accumulateNumber % 1024;
             if (afterPlusRemainder == 0)
@@ -190,23 +196,98 @@ namespace BrokenRailServer
         {
             RememberBuffer = new byte[length];
             Buffer.BlockCopy(this.Rcvbuffer, 0, RememberBuffer, 0, length);
+            RememberBuffers.Add(RememberBuffer);
         }
 
         public void MergeBuffer(int length2Merge)
         {
             _accumulateNumber = 0;
             _accumulateNumber += length2Merge;
-            byte[] secondReceive = new byte[length2Merge];
+            byte[] lastReceive = new byte[length2Merge];
             for (int i = 0; i < length2Merge; i++)
             {
-                secondReceive[i] = this.Rcvbuffer[i];
+                lastReceive[i] = this.Rcvbuffer[i];
             }
-            byte[] sumReceive = new byte[RememberBuffer.Length + length2Merge];
-            RememberBuffer.CopyTo(sumReceive, 0);
-            secondReceive.CopyTo(sumReceive, RememberBuffer.Length);
-            Rcvbuffer = new byte[sumReceive.Length];
+            int totalLength = 0;
+            for (int i = 0; i < RememberBuffers.Count; i++)
+            {
+                totalLength += RememberBuffers[i].Length;
+            }
+            totalLength += length2Merge;
+            byte[] sumReceive = new byte[totalLength];
+
+            int offset = 0;
+            for (int i = 0; i < RememberBuffers.Count; i++)
+            {
+                RememberBuffers[i].CopyTo(sumReceive, offset);
+                offset += RememberBuffers[i].Length;
+                if (i == RememberBuffers.Count - 1)
+                {
+                    lastReceive.CopyTo(sumReceive, offset);
+                }
+            }
+            Rcvbuffer = new byte[totalLength];
             sumReceive.CopyTo(Rcvbuffer, 0);
             RememberBuffer = null;
+            RememberBuffers.Clear();
+        }
+
+        int hitCount = 0;
+        /// <summary>
+        /// 处理粘包的情况
+        /// </summary>
+        /// <returns>表示是否有未处理的数据</returns>
+        public bool HandleNianBao(ref int length)
+        {
+            int len = (Rcvbuffer[2] << 8) + Rcvbuffer[3];
+            if (len < length)
+            {
+                //原来是！=的时候进入判断，可能会造成unhandledLength为负值，导致数组越界。
+                //处理粘包的情况。
+                int unhandledLength = Rcvbuffer.Length - len;
+                byte[] packagePrevious = new byte[len];
+                _packageUnhandled = new byte[unhandledLength];
+                for (int j = 0; j < len; j++)
+                {
+                    packagePrevious[j] = Rcvbuffer[j];
+                }
+                for (int i = 0; i < unhandledLength; i++)
+                {
+                    _packageUnhandled[i] = Rcvbuffer[len + i];
+                }
+                Rcvbuffer = new byte[len];
+                packagePrevious.CopyTo(Rcvbuffer, 0);
+                length = len;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 拷贝未处理的数组到接收缓存为了下一次循环
+        /// </summary>
+        /// <returns>拷贝后的数组长度为零返回false，否则为true</returns>
+        public bool CopyArray4Circle(ref int length)
+        {
+            length = _packageUnhandled.Length;
+            Rcvbuffer = new byte[length];
+            _packageUnhandled.CopyTo(Rcvbuffer, 0);
+            //if (length == 10)
+            //{
+            //    if (_packageUnhandled[0] == 0x66 && _packageUnhandled[1] == 0xcc)
+            //    {
+            //        Rcvbuffer = new byte[length];
+            //        _packageUnhandled.CopyTo(Rcvbuffer, 0);
+            //    }
+            //}
+            //else
+            //{
+            //    RememberBuffers.Add(_packageUnhandled);
+            //}
+            return length == 0 ? false : true;
         }
 
         #region INotifyPropertyChanged Members
