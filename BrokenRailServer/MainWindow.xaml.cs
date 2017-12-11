@@ -342,14 +342,20 @@ namespace BrokenRailServer
 
                         lock (lockObject)
                         {
+                            frd.HandleDuanBao(ref length);
+                            this.Dispatcher.Invoke(new Action(() =>
+                            {
+                                AppendMessage("处理断包后长度" + length, DataLevel.Error);
+                            }));
 
                             handleNianBao: bool nianBao = frd.HandleNianBao(ref length);
 
                             this.Dispatcher.Invoke(new Action(() =>
                             {
-                                AppendMessage("处理后长度" + length, DataLevel.Error);
+                                AppendMessage("处理粘包后长度" + length, DataLevel.Error);
                             }));
 
+                            handleData:
                             string originData = preAnalyseData(frd.Rcvbuffer, length);
                             setTerminalNoAndRegistSocket(frd, originData);
                             string data = string.Format("From[{0}]:{1}", frd.ToString(), originData);
@@ -371,10 +377,21 @@ namespace BrokenRailServer
                                     {
                                         AppendMessage("From[" + frd.ToString() + "]:粘包拆分", DataLevel.Warning);
                                         AppendMessage("未处理长度" + length, DataLevel.Normal);
+                                        string unhandle = bytesToHexString(frd.PackageUnhandled, length);
+                                        AppendMessage("未处理数据" + unhandle, DataLevel.Default);
                                     }));
                                     if (length >= 1018)//1018是一个历史数据返回包的长度
                                     {
                                         goto handleNianBao;
+                                    }
+                                    else if (length > 1 && frd.PackageUnhandled[0] == 0x66 && frd.PackageUnhandled[1] == 0xcc)
+                                    {
+                                        goto handleNianBao;
+                                    }
+                                    if (length > 1 && frd.PackageUnhandled[0] == 0x23 && frd.PackageUnhandled[1] == 0x23)
+                                    {//最后一个心跳包。
+                                        nianBao = false;
+                                        goto handleData;
                                     }
                                 }
                                 if (length == 10 && frd.Rcvbuffer[0] == 0x66 && frd.Rcvbuffer[1] == 0xcc)
@@ -403,6 +420,7 @@ namespace BrokenRailServer
 
         private void transmitData(TerminalAndClientUserControl sourceFriend, int length)
         {
+            Thread.Sleep(10);
             if (sourceFriend.ApType == AccessPointType.Terminal)
             {
                 if (length > 1)
@@ -419,7 +437,7 @@ namespace BrokenRailServer
                         }
                     }
                 }
-                foreach (var item in friends)
+                foreach (var item in decideDestFriendsUp(sourceFriend, length))
                 {
                     TerminalAndClientUserControl destFriend = item as TerminalAndClientUserControl;
                     if (destFriend != null && (destFriend.ApType == AccessPointType.PCClient || destFriend.ApType == AccessPointType.AndroidClient))
@@ -439,7 +457,7 @@ namespace BrokenRailServer
                         return;
                     }
                 }
-                foreach (var item in decideDestFriends(sourceFriend, length))
+                foreach (var item in decideDestFriendsDown(sourceFriend, length))
                 {
                     TerminalAndClientUserControl destFriend = item as TerminalAndClientUserControl;
                     if (destFriend != null && destFriend.ApType == AccessPointType.Terminal)
@@ -452,7 +470,7 @@ namespace BrokenRailServer
             }
         }
 
-        private List<TerminalAndClientUserControl> decideDestFriends(TerminalAndClientUserControl sourceFriend, int length)
+        private List<TerminalAndClientUserControl> decideDestFriendsDown(TerminalAndClientUserControl sourceFriend, int length)
         {
             List<TerminalAndClientUserControl> result = new List<TerminalAndClientUserControl>();
             if (length > 6)
@@ -492,6 +510,24 @@ namespace BrokenRailServer
                     case (byte)CommandType.RequestConfig:
                     case (byte)CommandType.UploadConfig:
                         return result;
+                    default:
+                        break;
+                }
+            }
+            return friends;
+        }
+        private List<TerminalAndClientUserControl> decideDestFriendsUp(TerminalAndClientUserControl sourceFriend, int length)
+        {
+            List<TerminalAndClientUserControl> result = new List<TerminalAndClientUserControl>();
+            if (length > 7 && sourceFriend.Rcvbuffer[0] == 0x66 && sourceFriend.Rcvbuffer[1] == 0xcc)
+            {
+                switch (sourceFriend.Rcvbuffer[6])
+                {
+                    case (byte)CommandType.GetOneSectionInfo:
+                        {
+
+                        }
+                        break;
                     default:
                         break;
                 }
@@ -542,11 +578,412 @@ namespace BrokenRailServer
                             }
                         }
                     }
+                    else if (data[0] == 0x66 && data[1] == 0xcc)
+                    {
+                        if (checkDataChecksum(data, length))
+                        {
+                            byte[] actualReceive = getActualReceive(frd, length);
+                            switch (data[6])
+                            {
+                                case (byte)CommandType.GetOneSectionInfo:
+                                    handleOneSectionInfo(actualReceive);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    }
                 }
             }
             catch (Exception ee)
             {
                 AppendMessage("处理数据异常：" + ee.Message, DataLevel.Error);
+            }
+        }
+
+        private byte[] getActualReceive(TerminalAndClientUserControl frd, int length)
+        {
+            byte[] actualReceive = new byte[length];
+            for (int i = 0; i < length; i++)
+            {
+                actualReceive[i] = frd.Rcvbuffer[i];
+            }
+            return actualReceive;
+        }
+
+        private void handleOneSectionInfo(byte[] actualReceive)
+        {
+            if (this._svtThumbnail == null)
+            {
+                AppendMessage("设备及铁轨未初始化！", DataLevel.Error);
+                return;
+            }
+
+            this.WaitingRingDisable();
+            //this.WaitReceiveTimer.Stop();
+
+            int length = (actualReceive[2] << 8) + actualReceive[3];
+            byte[] bytesOnOffContent = new byte[length - 9];
+            byte[] bytesTemp = new byte[length - 9];
+            for (int i = 7; i < length - 2; i++)
+            {
+                bytesOnOffContent[i - 7] = actualReceive[i];
+            }
+            for (int i = 0; i < bytesOnOffContent.Length; i += 3)
+            {
+                bytesTemp[i] = bytesOnOffContent[bytesOnOffContent.Length - i - 3];
+                bytesTemp[i + 1] = bytesOnOffContent[bytesOnOffContent.Length - i - 2];
+                bytesTemp[i + 2] = bytesOnOffContent[bytesOnOffContent.Length - i - 1];
+            }
+            bytesTemp.CopyTo(bytesOnOffContent, 0);
+            int contentLength = bytesOnOffContent.Length;
+            if (contentLength % 3 == 0)
+            {
+                if (contentLength == 3)
+                {
+                    //如果只有一个终端的数据就不存在两个终端数据冲突的情况。
+                    int index = FindMasterControlIndex(bytesOnOffContent[0]);
+                    //if (_terminalsReceiveFlag != null)
+                    //{
+                    //    _terminalsReceiveFlag[bytesOnOffContent[0]] = true;
+                    //}
+                    //检查1号铁轨
+                    if (index != 0)
+                    {
+                        //第一个终端没有左边的铁轨
+                        int onOffRail1Left = bytesOnOffContent[1] & 0x0f;
+                        this.Dispatcher.Invoke(new Action(() =>
+                        {
+                            setRail1State(index - 1, onOffRail1Left);
+                        }));
+                    }
+                    if (index != MasterControlList.Count - 1)
+                    {
+                        //最后一个终端没有右边的铁轨
+                        int onOffRail1Right = (bytesOnOffContent[1] & 0xf0) >> 4;
+                        this.Dispatcher.Invoke(new Action(() =>
+                        {
+                            setRail1State(index, onOffRail1Right);
+                        }));
+                    }
+
+                    //检查2号铁轨
+                    if (index != 0)
+                    {
+                        //第一个终端没有左边的铁轨
+                        int onOffRail2Left = bytesOnOffContent[2] & 0x0f;
+                        this.Dispatcher.Invoke(new Action(() =>
+                        {
+                            setRail2State(index - 1, onOffRail2Left);
+                        }));
+                    }
+                    if (index != MasterControlList.Count - 1)
+                    {
+                        //最后一个终端没有右边的铁轨
+                        int onOffRail2Right = (bytesOnOffContent[2] & 0xf0) >> 4;
+                        this.Dispatcher.Invoke(new Action(() =>
+                        {
+                            setRail2State(index, onOffRail2Right);
+                        }));
+                    }
+                }
+                else
+                {
+                    //如果有多个终端的数据，需要处理冲突。
+                    for (int i = 0; i < contentLength - 3; i++, i++, i++)
+                    {
+                        int index = FindMasterControlIndex(bytesOnOffContent[i]);
+                        //if (_terminalsReceiveFlag != null)
+                        //{
+                        //    _terminalsReceiveFlag[bytesOnOffContent[i]] = true;
+                        //}
+                        //检查1号铁轨
+                        if (i == 0 && index != 0)
+                        {
+                            //第一个终端没有左边的铁轨
+                            int onOffRail1Left = bytesOnOffContent[1] & 0x0f;
+                            this.Dispatcher.Invoke(new Action(() =>
+                            {
+                                setRail1State(index - 1, onOffRail1Left);
+                            }));
+                        }
+                        else
+                        {
+                            if (((bytesOnOffContent[i + 1] & 0xf0) >> 4) == (bytesOnOffContent[i + 4] & 0x0f))
+                            {
+                                //不冲突
+                                int onOff = (bytesOnOffContent[i + 1] & 0xf0) >> 4;
+                                this.Dispatcher.Invoke(new Action(() =>
+                                {
+                                    setRail1State(index, onOff);
+                                }));
+                            }
+                            else if (((bytesOnOffContent[i + 1] & 0xf0) >> 4) == 9 || (bytesOnOffContent[i + 4] & 0x0f) == 9)
+                            {
+                                this.Dispatcher.Invoke(new Action(() =>
+                                {
+                                    setRail1State(index, 9);
+                                }));
+                            }
+                            else
+                            {
+                                //冲突
+                                this.Dispatcher.Invoke(new Action(() =>
+                                {
+                                    this._svtThumbnail.Different(new int[1] { index }, 1);
+                                    Rail rail = this.cvsRail1.Children[index] as Rail;
+                                    rail.Different();
+
+                                    int tNo = MasterControlList[index].TerminalNumber;
+                                    int tNextNo = MasterControlList[index + 1].TerminalNumber;
+                                    string errorTerminal = string.Empty;
+                                    if ((bytesOnOffContent[i + 1] & 0xf0) == 0x70)
+                                    {
+                                        errorTerminal = tNo.ToString() + "号终端接收异常";
+                                    }
+                                    else if ((bytesOnOffContent[i + 4] & 0x0f) == 0x07)
+                                    {
+                                        errorTerminal = tNextNo.ToString() + "号终端接收异常";
+                                    }
+                                    this.dataShowUserCtrl.AddShowData(tNo.ToString() + "号终端与" + tNextNo.ToString() + "号终端之间的1号铁轨通断信息矛盾！" + errorTerminal +
+                                        "，请检查", DataLevel.Warning);
+                                }));
+                            }
+                        }
+                        if (i == (contentLength - 6))
+                        {
+                            int indexLastTerminal = FindMasterControlIndex(bytesOnOffContent[i + 3]);
+                            //if (_terminalsReceiveFlag != null)
+                            //{
+                            //    _terminalsReceiveFlag[bytesOnOffContent[i + 3]] = true;
+                            //}
+                            if (indexLastTerminal != MasterControlList.Count - 1)
+                            {
+                                //最后一个终端没有右边的铁轨
+                                int onOffRail1Right = (bytesOnOffContent[i + 4] & 0xf0) >> 4;
+                                this.Dispatcher.Invoke(new Action(() =>
+                                {
+                                    setRail1State(indexLastTerminal, onOffRail1Right);
+                                }));
+                            }
+                        }
+
+                        //检查2号铁轨
+                        if (i == 0 && index != 0)
+                        {
+                            //第一个终端没有左边的铁轨
+                            int onOffRail2Left = bytesOnOffContent[2] & 0x0f;
+                            this.Dispatcher.Invoke(new Action(() =>
+                            {
+                                setRail2State(index - 1, onOffRail2Left);
+                            }));
+                        }
+                        else
+                        {
+                            if (((bytesOnOffContent[i + 2] & 0xf0) >> 4) == (bytesOnOffContent[i + 5] & 0x0f))
+                            {
+                                //不冲突
+                                int onOff = (bytesOnOffContent[i + 2] & 0xf0) >> 4;
+                                this.Dispatcher.Invoke(new Action(() =>
+                                {
+                                    setRail2State(index, onOff);
+                                }));
+                            }
+                            else if (((bytesOnOffContent[i + 2] & 0xf0) >> 4) == 9 || (bytesOnOffContent[i + 5] & 0x0f) == 9)
+                            {
+                                this.Dispatcher.Invoke(new Action(() =>
+                                {
+                                    setRail2State(index, 9);
+                                }));
+                            }
+                            else
+                            {
+                                //冲突
+                                this.Dispatcher.Invoke(new Action(() =>
+                                {
+                                    this._svtThumbnail.Different(new int[1] { index }, 2);
+                                    Rail rail = this.cvsRail2.Children[index] as Rail;
+                                    rail.Different();
+
+                                    int tNo = MasterControlList[index].TerminalNumber;
+                                    int tNextNo = MasterControlList[index + 1].TerminalNumber;
+                                    string errorTerminal = string.Empty;
+                                    if ((bytesOnOffContent[i + 2] & 0xf0) == 0x70)
+                                    {
+                                        errorTerminal = tNo.ToString() + "号终端接收异常";
+                                    }
+                                    else if ((bytesOnOffContent[i + 5] & 0x0f) == 0x07)
+                                    {
+                                        errorTerminal = tNextNo.ToString() + "号终端接收异常";
+                                    }
+                                    this.dataShowUserCtrl.AddShowData(tNo.ToString() + "号终端与" + tNextNo.ToString() + "号终端之间的2号铁轨通断信息矛盾！" + errorTerminal +
+                                        "，请检查", DataLevel.Warning);
+                                }));
+                            }
+                        }
+                        if (i == (contentLength - 6))
+                        {
+                            int indexLastTerminal = FindMasterControlIndex(bytesOnOffContent[i + 3]);
+                            if (indexLastTerminal != MasterControlList.Count - 1)
+                            {
+                                //最后一个终端没有右边的铁轨
+                                int onOffRail2Right = (bytesOnOffContent[i + 5] & 0xf0) >> 4;
+                                this.Dispatcher.Invoke(new Action(() =>
+                                {
+                                    setRail2State(indexLastTerminal, onOffRail2Right);
+                                }));
+                            }
+                        }
+                    }
+                }
+
+                int rail1NormalCount = 0;
+                int rail2NormalCount = 0;
+                this.Dispatcher.Invoke(new Action(() =>
+                {
+                    for (int i = 0; i < this.cvsRail1.Children.Count; i++)
+                    {
+                        var rail1 = this.cvsRail1.Children[i] as Rail;
+                        if (rail1.RailState == RailStates.IsNormal)
+                        {
+                            rail1NormalCount++;
+                        }
+                        if (rail1NormalCount == this.cvsRail1.Children.Count)
+                        {
+                            this.dataShowUserCtrl.AddShowData("1号铁轨正常", DataLevel.Normal);
+                        }
+                        var rail2 = this.cvsRail2.Children[i] as Rail;
+                        if (rail2.RailState == RailStates.IsNormal)
+                        {
+                            rail2NormalCount++;
+                        }
+                        if (rail2NormalCount == this.cvsRail2.Children.Count)
+                        {
+                            this.dataShowUserCtrl.AddShowData("2号铁轨正常", DataLevel.Normal);
+                        }
+                    }
+                }));
+            }
+            else
+            {
+                AppendMessage("发送数据内容的长度错误，应该是3的倍数", DataLevel.Error);
+            }
+        }
+
+
+        private void setRail1State(int index, int onOff)
+        {
+            if (onOff == 0)
+            {//通的
+                this._svtThumbnail.Normal(new int[1] { index }, 1);
+                Rail rail = this.cvsRail1.Children[index] as Rail;
+                rail.Normal();
+            }
+            else if (onOff == 7)
+            {//断的
+                int tNo = MasterControlList[index].TerminalNumber;
+                int tNextNo = MasterControlList[index + 1].TerminalNumber;
+
+                this.dataShowUserCtrl.AddShowData(tNo.ToString() + "号终端与" + tNextNo.ToString() + "号终端之间的1号铁轨断开！", DataLevel.Error);
+                this._svtThumbnail.Error(new int[1] { index }, 1);
+                Rail rail = this.cvsRail1.Children[index] as Rail;
+                rail.Error();
+            }
+            else if (onOff == 9)
+            {//超时
+                int tNo = MasterControlList[index].TerminalNumber;
+                int tNextNo = MasterControlList[index + 1].TerminalNumber;
+
+                this.dataShowUserCtrl.AddShowData(tNo.ToString() + "号终端与" + tNextNo.ToString() + "号终端之间的1号铁轨超时！", DataLevel.Timeout);
+                this._svtThumbnail.Timeout(new int[1] { index }, 1);
+                Rail rail = this.cvsRail1.Children[index] as Rail;
+                rail.Timeout();
+            }
+            else if (onOff == 0x0a)
+            {//持续干扰
+                int tNo = MasterControlList[index].TerminalNumber;
+                int tNextNo = MasterControlList[index + 1].TerminalNumber;
+
+                this.dataShowUserCtrl.AddShowData(tNo.ToString() + "号终端与" + tNextNo.ToString() + "号终端之间的1号铁轨持续干扰！", DataLevel.ContinuousInterference);
+                this._svtThumbnail.ContinuousInterference(new int[1] { index }, 1);
+                Rail rail = this.cvsRail1.Children[index] as Rail;
+                rail.ContinuousInterference();
+            }
+            else
+            {
+                AppendMessage("收到未定义数据！", DataLevel.Error);
+            }
+        }
+
+        private void setRail2State(int index, int onOff)
+        {
+            if (onOff == 0)
+            {//通的
+                this._svtThumbnail.Normal(new int[1] { index }, 2);
+                Rail rail = this.cvsRail2.Children[index] as Rail;
+                rail.Normal();
+            }
+            else if (onOff == 7)
+            {//断的
+                int tNo = MasterControlList[index].TerminalNumber;
+                int tNextNo = MasterControlList[index + 1].TerminalNumber;
+
+                this.dataShowUserCtrl.AddShowData(tNo.ToString() + "号终端与" + tNextNo.ToString() + "号终端之间的2号铁轨断开！", DataLevel.Error);
+                this._svtThumbnail.Error(new int[1] { index }, 2);
+                Rail rail = this.cvsRail2.Children[index] as Rail;
+                rail.Error();
+            }
+            else if (onOff == 9)
+            {//超时
+                int tNo = MasterControlList[index].TerminalNumber;
+                int tNextNo = MasterControlList[index + 1].TerminalNumber;
+
+                this.dataShowUserCtrl.AddShowData(tNo.ToString() + "号终端与" + tNextNo.ToString() + "号终端之间的2号铁轨超时！", DataLevel.Timeout);
+                this._svtThumbnail.Timeout(new int[1] { index }, 2);
+                Rail rail = this.cvsRail2.Children[index] as Rail;
+                rail.Timeout();
+            }
+            else if (onOff == 0x0a)
+            {//持续干扰
+                int tNo = MasterControlList[index].TerminalNumber;
+                int tNextNo = MasterControlList[index + 1].TerminalNumber;
+
+                this.dataShowUserCtrl.AddShowData(tNo.ToString() + "号终端与" + tNextNo.ToString() + "号终端之间的2号铁轨持续干扰！", DataLevel.ContinuousInterference);
+                this._svtThumbnail.ContinuousInterference(new int[1] { index }, 2);
+                Rail rail = this.cvsRail2.Children[index] as Rail;
+                rail.ContinuousInterference();
+            }
+            else
+            {
+                AppendMessage("收到未定义数据！", DataLevel.Error);
+            }
+        }
+
+        /// <summary>
+        /// 检查数据部分的校验和
+        /// </summary>
+        /// <param name="data">数据</param>
+        /// <param name="length">有效数据的长度</param>
+        /// <returns>返回true，校验和没问题。否则校验和出错</returns>
+        private bool checkDataChecksum(byte[] data, int length)
+        {
+            int checksum = 0;
+            for (int i = 0; i < length - 2; i++)
+            {
+                checksum += data[i];
+            }
+            int sumHigh;
+            int sumLow;
+            sumHigh = (checksum & 0xff00) >> 8;
+            sumLow = checksum & 0xff;
+            if (sumHigh != data[length - 2] || sumLow != data[length - 1])
+            {
+                AppendMessage("校验和出错！", DataLevel.Error);
+                return false;
+            }
+            else
+            {
+                return true;
             }
         }
 

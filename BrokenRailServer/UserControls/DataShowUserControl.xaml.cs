@@ -111,6 +111,8 @@ namespace BrokenRailMonitorViaWiFi
         Default,
         Normal,
         Warning,
-        Error
+        Error,
+        Timeout,
+        ContinuousInterference
     }
 }

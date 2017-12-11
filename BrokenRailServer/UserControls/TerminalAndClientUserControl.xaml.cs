@@ -100,6 +100,19 @@ namespace BrokenRailServer
             }
         }
 
+        public byte[] PackageUnhandled
+        {
+            get
+            {
+                return _packageUnhandled;
+            }
+
+            set
+            {
+                _packageUnhandled = value;
+            }
+        }
+
         //清空接受缓存，在每一次新的接收之前都要调用该方法
         public void ClearBuffer()
         {
@@ -239,6 +252,10 @@ namespace BrokenRailServer
         /// <returns>表示是否有未处理的数据</returns>
         public bool HandleNianBao(ref int length)
         {
+            if ((Rcvbuffer[0] != 0x66) || (Rcvbuffer[1] != 0xcc))
+            {
+                return false;
+            }
             int len = (Rcvbuffer[2] << 8) + Rcvbuffer[3];
             if (len < length)
             {
@@ -246,14 +263,14 @@ namespace BrokenRailServer
                 //处理粘包的情况。
                 int unhandledLength = Rcvbuffer.Length - len;
                 byte[] packagePrevious = new byte[len];
-                _packageUnhandled = new byte[unhandledLength];
+                PackageUnhandled = new byte[unhandledLength];
                 for (int j = 0; j < len; j++)
                 {
                     packagePrevious[j] = Rcvbuffer[j];
                 }
                 for (int i = 0; i < unhandledLength; i++)
                 {
-                    _packageUnhandled[i] = Rcvbuffer[len + i];
+                    PackageUnhandled[i] = Rcvbuffer[len + i];
                 }
                 Rcvbuffer = new byte[len];
                 packagePrevious.CopyTo(Rcvbuffer, 0);
@@ -266,15 +283,48 @@ namespace BrokenRailServer
             }
         }
 
+        public void HandleDuanBao(ref int length)
+        {
+            if (length > 1)
+            {
+                if (PackageUnhandled.Length != 0)
+                {
+                    if (Rcvbuffer[0] == 0x55 && Rcvbuffer[1] == 0xaa)
+                    {
+
+                    }
+                    else if (Rcvbuffer[0] == 0x66 && Rcvbuffer[1] == 0xcc)
+                    {
+
+                    }
+                    else if (Rcvbuffer[0] == 0x23 && Rcvbuffer[1] == 0x23)
+                    {
+
+                    }
+                    else
+                    {
+                        int totalLength = PackageUnhandled.Length + length;
+                        byte[] sumBytes = new byte[totalLength];
+                        PackageUnhandled.CopyTo(sumBytes, 0);
+                        Buffer.BlockCopy(Rcvbuffer, 0, sumBytes, PackageUnhandled.Length, length);
+                        Rcvbuffer = new byte[totalLength];
+                        sumBytes.CopyTo(Rcvbuffer, 0);
+                        length = totalLength;
+                        PackageUnhandled = new byte[0];
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// 拷贝未处理的数组到接收缓存为了下一次循环
         /// </summary>
         /// <returns>拷贝后的数组长度为零返回false，否则为true</returns>
         public bool CopyArray4Circle(ref int length)
         {
-            length = _packageUnhandled.Length;
+            length = PackageUnhandled.Length;
             Rcvbuffer = new byte[length];
-            _packageUnhandled.CopyTo(Rcvbuffer, 0);
+            PackageUnhandled.CopyTo(Rcvbuffer, 0);
             //if (length == 10)
             //{
             //    if (_packageUnhandled[0] == 0x66 && _packageUnhandled[1] == 0xcc)
