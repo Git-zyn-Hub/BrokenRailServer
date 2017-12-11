@@ -11,6 +11,7 @@ namespace BrokenRailServer
         RequestConfig = 0xA0,
         AssignClientID = 0xA1,
         UploadConfig = 0xA2,
+        SubscribeAllRailInfo = 0xA3,
         ConfigInitialInfo = 0xF0,
         ReadPointInfo = 0xF1,
         ThresholdSetting = 0xF2,

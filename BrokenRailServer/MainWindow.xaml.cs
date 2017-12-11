@@ -21,6 +21,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using System.Xml;
 
 namespace BrokenRailServer
@@ -49,6 +50,8 @@ namespace BrokenRailServer
         private List<int> _socketRegister = new List<int>();
         private Stack _clientIDStack = new Stack();
         private object lockObject = new object();
+        private DispatcherTimer _getAllRailInfoTimer = new DispatcherTimer();
+        private DispatcherTimer _timeToWaitTimer = new DispatcherTimer();
 
         public int PackageCount
         {
@@ -101,6 +104,8 @@ namespace BrokenRailServer
                 {
                     _clientIDStack.Push(i);
                 }
+                _getAllRailInfoTimer.Tick += getAllRailInfoTimer_Tick;
+                _getAllRailInfoTimer.Interval = new TimeSpan(0, 0, 75);
             }
             catch (Exception ee)
             {
@@ -246,6 +251,7 @@ namespace BrokenRailServer
                 AsyncCallback callback = new AsyncCallback(AcceptCallBack);
                 listener.BeginAcceptSocket(callback, listener);
                 this.btnStartListening.IsEnabled = false;
+                miGetAllRailInfo_Click(this, null);
             }
             catch (Exception ee)
             {
@@ -588,6 +594,9 @@ namespace BrokenRailServer
                                 case (byte)CommandType.GetOneSectionInfo:
                                     handleOneSectionInfo(actualReceive);
                                     break;
+                                case (byte)CommandType.ImmediatelyRespond:
+                                    handleImmediatelyRespond(actualReceive);
+                                    break;
                                 default:
                                     break;
                             }
@@ -601,6 +610,70 @@ namespace BrokenRailServer
             }
         }
 
+        private void getAllRailInfoTimer_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                this.WaitingRingEnable();
+                //this.WaitReceiveTimer.Start();
+
+                if (_4GPointIndex.Count == 0)
+                {
+                    this.WaitingRingDisable();
+                    //this.WaitReceiveTimer.Stop();
+
+                    AppendMessage("系统中不包含4G点，请检查config文档！", DataLevel.Error);
+                    _getAllRailInfoTimer.Stop();
+                }
+                else
+                {
+                    for (int i = 0; i < _4GPointIndex.Count; i++)
+                    {
+                        Socket socket = this.MasterControlList[_4GPointIndex[i]].GetNearest4GTerminalSocket(true);
+                        byte[] sendData;
+                        if (i == _4GPointIndex.Count - 1)
+                        {
+                            //获取从1到ff的广播数据，当循环到最后一个的时候，目的地址不再是4G点的前一个终端，而是整个终端列表中的最后一个终端。
+                            sendData = SendDataPackage.PackageSendData(0xff, (byte)this.MasterControlList[this.MasterControlList.Count - 1].TerminalNumber, (byte)CommandType.GetOneSectionInfo, new byte[2] { (byte)this.MasterControlList[_4GPointIndex[i]].TerminalNumber, 0 });
+                        }
+                        else
+                        {
+                            sendData = SendDataPackage.PackageSendData(0xff, (byte)this.MasterControlList[_4GPointIndex[i + 1] - 1].TerminalNumber, (byte)CommandType.GetOneSectionInfo, new byte[2] { (byte)this.MasterControlList[_4GPointIndex[i]].TerminalNumber, 0 });
+                        }
+                        if (socket != null)
+                        {
+                            DecideDelayOrNot();
+                            socket.Send(sendData, SocketFlags.None);
+                            AppendDataMsg(sendData);
+                        }
+                        else
+                        {
+                            this.WaitingRingDisable();
+                            //this.WaitReceiveTimer.Stop();
+
+                            AppendMessage("来自终端" + this.MasterControlList[_4GPointIndex[i]].TerminalNumber + "的消息：" + this.MasterControlList[_4GPointIndex[i]].Find4GErrorMsg, DataLevel.Error);
+                        }
+                    }
+                }
+            }
+            catch (Exception ee)
+            {
+                AppendMessage(ee.Message, DataLevel.Error);
+            }
+        }
+        public void AppendDataMsg(byte[] sendData)
+        {
+            StringBuilder sb = new StringBuilder(500);
+            for (int i = 0; i < sendData.Length; i++)
+            {
+                sb.Append(sendData[i].ToString("x2"));
+            }
+            this.Dispatcher.Invoke(new Action(() =>
+            {
+                this.dataShowUserCtrl.AddShowData("发送数据  (长度：" + sendData.Length.ToString() + ")  " + sb.ToString(), DataLevel.Default);
+            }));
+        }
+
         private byte[] getActualReceive(TerminalAndClientUserControl frd, int length)
         {
             byte[] actualReceive = new byte[length];
@@ -609,6 +682,43 @@ namespace BrokenRailServer
                 actualReceive[i] = frd.Rcvbuffer[i];
             }
             return actualReceive;
+        }
+
+        private void handleImmediatelyRespond(byte[] actualReceive)
+        {
+            switch (actualReceive[7])
+            {
+                case 0xf0:
+                    this.dataShowUserCtrl.AddShowData("初始信息配置指令，" + actualReceive[4] + "号4G终端已接收！", DataLevel.Normal);
+                    break;
+                case 0xf1:
+                    this.dataShowUserCtrl.AddShowData("读取单点配置信息指令，" + actualReceive[4] + "号4G终端已接收！", DataLevel.Normal);
+                    break;
+                case 0xf2:
+                    this.dataShowUserCtrl.AddShowData("设置门限指令，" + actualReceive[4] + "号4G终端已接收！", DataLevel.Normal);
+                    break;
+                case 0x52:
+                    this.dataShowUserCtrl.AddShowData("实时时钟配置指令，" + actualReceive[4] + "号4G终端已接收！", DataLevel.Normal);
+                    break;
+                //case 0xf3:
+                //    this.dataShowUserCtrl.AddShowData("超声信号发射通报指令，4G终端已接收！", DataLevel.Normal);
+                //    break;
+                case 0xf4:
+                    this.dataShowUserCtrl.AddShowData("获取Flash里存储的铁轨历史信息指令，" + actualReceive[4] + "号4G终端已接收！", DataLevel.Normal);
+                    break;
+                case 0xf5:
+                    this.dataShowUserCtrl.AddShowData("获取单点铁轨信息指令，" + actualReceive[4] + "号4G终端已接收！", DataLevel.Normal);
+                    break;
+                case 0x56:
+                    this.dataShowUserCtrl.AddShowData("擦除flash指令，" + actualReceive[4] + "号4G终端已接收！", DataLevel.Normal);
+                    break;
+                case 0x55:
+                    this.dataShowUserCtrl.AddShowData("获取某段铁轨信息，" + actualReceive[4] + "号4G终端已接收！", DataLevel.Normal);
+                    break;
+                default:
+                    this.dataShowUserCtrl.AddShowData("未知指令被接收！", DataLevel.Error);
+                    break;
+            }
         }
 
         private void handleOneSectionInfo(byte[] actualReceive)
@@ -1343,6 +1453,7 @@ namespace BrokenRailServer
             clearFriends();
             this.btnStartListening.IsEnabled = true;
             resetClientIDStack();
+            miGetAllRailInfo_Click(this, null);
             AppendMessage("已经结束了服务器的侦听！", DataLevel.Error);
         }
 
@@ -1404,7 +1515,30 @@ namespace BrokenRailServer
 
         private void miGetAllRailInfo_Click(object sender, RoutedEventArgs e)
         {
+            if (_getAllRailInfoTimer.IsEnabled)
+            {
+                _getAllRailInfoTimer.Stop();
+                this.miGetAllRailInfo.Header = "获取所有终端铁轨信息";
+            }
+            else
+            {
+                if (!_timeToWaitTimer.IsEnabled)
+                {
+                    DateTime now = System.DateTime.Now;
+                    int totalSecondToNow = now.Hour * 3600 + now.Minute * 60 + now.Second;
+                    int timeToSend = 75 - (totalSecondToNow % 75);
 
+                    _timeToWaitTimer.Tick += (s, ee) =>
+                    {
+                        _timeToWaitTimer.Stop();
+                        _getAllRailInfoTimer.Start();
+                        getAllRailInfoTimer_Tick(sender, e);
+                        this.miGetAllRailInfo.Header = "停止获取所有终端铁轨信息";
+                    };
+                    _timeToWaitTimer.Interval = new TimeSpan(0, 0, timeToSend);
+                    _timeToWaitTimer.Start();
+                }
+            }
         }
 
         private void miGetOneSectionInfo_Click(object sender, RoutedEventArgs e)
