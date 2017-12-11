@@ -37,6 +37,8 @@ namespace BrokenRailServer
         private int _packageCount = 0;
         //保存与客户相关的信息列表
         List<TerminalAndClientUserControl> friends = new List<TerminalAndClientUserControl>();
+        //保存与客户相关的信息列表
+        private List<TerminalAndClientUserControl> _subscribingClient = new List<TerminalAndClientUserControl>();
         //负责监听的套接字
         TcpListener listener;
         //只是是否启动了监听
@@ -513,6 +515,7 @@ namespace BrokenRailServer
                             }
                         }
                         break;
+                    case (byte)CommandType.SubscribeAllRailInfo:
                     case (byte)CommandType.RequestConfig:
                     case (byte)CommandType.UploadConfig:
                         return result;
@@ -522,6 +525,12 @@ namespace BrokenRailServer
             }
             return friends;
         }
+        /// <summary>
+        /// 决定目的用户，是哪个电脑或者手机
+        /// </summary>
+        /// <param name="sourceFriend"></param>
+        /// <param name="length"></param>
+        /// <returns></returns>
         private List<TerminalAndClientUserControl> decideDestFriendsUp(TerminalAndClientUserControl sourceFriend, int length)
         {
             List<TerminalAndClientUserControl> result = new List<TerminalAndClientUserControl>();
@@ -530,10 +539,7 @@ namespace BrokenRailServer
                 switch (sourceFriend.Rcvbuffer[6])
                 {
                     case (byte)CommandType.GetOneSectionInfo:
-                        {
-
-                        }
-                        break;
+                        return _subscribingClient;
                     default:
                         break;
                 }
@@ -579,6 +585,24 @@ namespace BrokenRailServer
                                         recvFileThread.Start();
                                     }
                                     break;
+                                case (byte)CommandType.SubscribeAllRailInfo:
+                                    {
+                                        if (data[6] == 0x00)
+                                        {
+                                            if (!_subscribingClient.Contains(frd))
+                                            {
+                                                _subscribingClient.Add(frd);
+                                            }
+                                        }
+                                        else if (data[6] == 0xff)
+                                        {
+                                            if (_subscribingClient.Contains(frd))
+                                            {
+                                                _subscribingClient.Remove(frd);
+                                            }
+                                        }
+                                    }
+                                    break;
                                 default:
                                     break;
                             }
@@ -592,7 +616,10 @@ namespace BrokenRailServer
                             switch (data[6])
                             {
                                 case (byte)CommandType.GetOneSectionInfo:
-                                    handleOneSectionInfo(actualReceive);
+                                    {
+                                        WaitingRingDisable();
+                                        handleOneSectionInfo(actualReceive);
+                                    }
                                     break;
                                 case (byte)CommandType.ImmediatelyRespond:
                                     handleImmediatelyRespond(actualReceive);
@@ -1454,6 +1481,8 @@ namespace BrokenRailServer
             this.btnStartListening.IsEnabled = true;
             resetClientIDStack();
             miGetAllRailInfo_Click(this, null);
+            errorAllRails();
+            WaitingRingDisable();
             AppendMessage("已经结束了服务器的侦听！", DataLevel.Error);
         }
 
@@ -1719,6 +1748,21 @@ namespace BrokenRailServer
                 i++;
             }
             return -1;
+        }
+        private void errorAllRails()
+        {
+            foreach (var item in _rail1List)
+            {
+                item.Error();
+            }
+            foreach (var item in cvsRail2.Children)
+            {
+                Rail rail2 = item as Rail;
+                if (rail2 != null)
+                {
+                    rail2.Error();
+                }
+            }
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
