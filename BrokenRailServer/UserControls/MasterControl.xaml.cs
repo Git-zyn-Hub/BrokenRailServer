@@ -38,6 +38,11 @@ namespace BrokenRailServer.UserControls
         private TerminalAndClientUserControl _terminal = null;
         private DispatcherTimer _offlineTimer;
         private bool _isOnline = false;
+        private int _rail1Stress;
+        private int _rail1Temperature;
+        private int _rail2Stress;
+        private int _rail2Temperature;
+        private int _masterCtrlTemperature;
 
         public bool Is4G
         {
@@ -152,6 +157,90 @@ namespace BrokenRailServer.UserControls
                 _isOnline = value;
             }
         }
+        public int Rail1Stress
+        {
+            get
+            {
+                return _rail1Stress;
+            }
+
+            set
+            {
+                if (_rail1Stress != value)
+                {
+                    _rail1Stress = value;
+                    OnPropertyChanged("Rail1Stress");
+                }
+            }
+        }
+
+        public int Rail1Temperature
+        {
+            get
+            {
+                return _rail1Temperature;
+            }
+
+            set
+            {
+                if (_rail1Temperature != value)
+                {
+                    _rail1Temperature = value;
+                    OnPropertyChanged("Rail1Temperature");
+                }
+            }
+        }
+
+        public int Rail2Stress
+        {
+            get
+            {
+                return _rail2Stress;
+            }
+
+            set
+            {
+                if (_rail2Stress != value)
+                {
+                    _rail2Stress = value;
+                    OnPropertyChanged("Rail2Stress");
+                }
+            }
+        }
+
+        public int Rail2Temperature
+        {
+            get
+            {
+                return _rail2Temperature;
+            }
+
+            set
+            {
+                if (_rail2Temperature != value)
+                {
+                    _rail2Temperature = value;
+                    OnPropertyChanged("Rail2Temperature");
+                }
+            }
+        }
+
+        public int MasterCtrlTemperature
+        {
+            get
+            {
+                return _masterCtrlTemperature;
+            }
+
+            set
+            {
+                if (_masterCtrlTemperature != value)
+                {
+                    _masterCtrlTemperature = value;
+                    OnPropertyChanged("MasterCtrlTemperature");
+                }
+            }
+        }
 
         public MasterControl()
         {
@@ -161,6 +250,7 @@ namespace BrokenRailServer.UserControls
         {
             InitializeComponent();
             _mainWin = mainWin;
+            this.DataContext = this;
             _offlineTimer = new DispatcherTimer();
             _offlineTimer.Interval = new TimeSpan(0, 2, 5);
             _offlineTimer.Tick += offlineTimer_Tick;

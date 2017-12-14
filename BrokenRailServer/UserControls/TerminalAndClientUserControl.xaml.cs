@@ -245,7 +245,6 @@ namespace BrokenRailServer
             RememberBuffers.Clear();
         }
 
-        int hitCount = 0;
         /// <summary>
         /// 处理粘包的情况
         /// </summary>

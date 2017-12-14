@@ -69,6 +69,7 @@
     <Compile Include="Classes\ModernProgressRing.cs" />
     <Compile Include="Classes\SendDataPackage.cs" />
     <Compile Include="Classes\ValidationRules.cs" />
+    <Compile Include="Converters.cs" />
     <Compile Include="Enums.cs" />
     <Compile Include="SendReceiveFile\FileServer.cs" />
     <Compile Include="SendReceiveFile\FileProtocol.cs" />
