@@ -29,6 +29,7 @@ namespace BrokenRailServer
         private Socket _socketImport;
         private int _clientID = 0;
         public IPAddress ClientAddress { get; set; }
+        public string MacAddress { get; set; }
         private int _accumulateNumber = 0;
 
         public byte[] Rcvbuffer;

@@ -23,11 +23,11 @@
             </ContextMenu>
         </Grid.ContextMenu>
         <StackPanel Orientation="Horizontal" Width="100" HorizontalAlignment="Center" Margin="-50,-55,-50,55">
-            <TextBlock Foreground="White" Width="50" Text="{Binding Rail1Stress, Converter={StaticResource stress2TextConverter}}" Padding="5"></TextBlock>
+            <TextBlock Foreground="White" Width="50" Text="{Binding Rail1Stress, Converter={StaticResource stress2TextConverter}}" Padding="5" TextAlignment="Right"></TextBlock>
             <TextBlock Foreground="White" Width="50" Text="{Binding Rail1Temperature, Converter={StaticResource temperature2TextConverter}}" Padding="5"></TextBlock>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Width="100" HorizontalAlignment="Center" Margin="-50,55,-50,-55">
-            <TextBlock Foreground="White" Width="50" Text="{Binding Rail2Stress, Converter={StaticResource stress2TextConverter}}" Padding="5"></TextBlock>
+            <TextBlock Foreground="White" Width="50" Text="{Binding Rail2Stress, Converter={StaticResource stress2TextConverter}}" Padding="5" TextAlignment="Right"></TextBlock>
             <TextBlock Foreground="White" Width="50" Text="{Binding Rail2Temperature, Converter={StaticResource temperature2TextConverter}}" Padding="5"></TextBlock>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Width="50" HorizontalAlignment="Center" Margin="0,0,-90,0">

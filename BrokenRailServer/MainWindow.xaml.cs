@@ -1263,6 +1263,9 @@ namespace BrokenRailServer
                         }
                         int indexOfMaoHao = data.IndexOf(':');
                         frd.ClientAddress = IPAddress.Parse(data.Substring(2, indexOfMaoHao - 2));
+                        int indexOfSharp = data.IndexOf('#');
+                        frd.MacAddress = data.Substring(indexOfSharp + 1, 12);
+                        frd.MacAddress = frd.MacAddress.ToUpper();
                     }
                     else if (data.Substring(0, 1) == "电")
                     {
