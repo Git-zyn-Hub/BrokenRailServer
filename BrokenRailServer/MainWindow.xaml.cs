@@ -373,6 +373,7 @@ namespace BrokenRailServer
                             this.Dispatcher.Invoke(new Action(() =>
                             {
                                 AppendMessage(data, DataLevel.Default);
+                                MessageRecvHandleCenter(frd.Rcvbuffer, length);
                                 handleData(frd, length);
                                 setAccessPointTypeAndClientID(frd, originData);
                                 transmitData(frd, length);
@@ -1257,6 +1258,45 @@ namespace BrokenRailServer
             return null;
         }
 
+        private void MessageRecvHandleCenter(byte[] data, int length)
+        {
+            if (data.Length > 8)
+            {
+                if (data[0] == 0x55 && data[1] == 0xaa)
+                {
+                    switch (data[5])
+                    {
+                        case (byte)CommandType.SubscribeAllRailInfo:
+                            {
+                                if (data[6] == 0)
+                                {
+                                    int indexOfClient = FindClientIndex(data[3]);
+                                    if (indexOfClient != -1)
+                                    {
+                                        AppendMessage(friends[indexOfClient].ToString() + "订阅所有终端铁轨信息", DataLevel.Default);
+                                    }
+                                }
+                                else if (data[6] == 0xff)
+                                {
+                                    int indexOfClient = FindClientIndex(data[3]);
+                                    if (indexOfClient != -1)
+                                    {
+                                        AppendMessage(friends[indexOfClient].ToString() + "取消订阅", DataLevel.Default);
+                                    }
+                                }
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                else if (data[0] == 0x66 && data[1] == 0xcc)
+                {
+
+                }
+            }
+        }
+
         private void setAccessPointTypeAndClientID(TerminalAndClientUserControl frd, string data)
         {
             if (frd.ApType == AccessPointType.Default)
@@ -1831,6 +1871,22 @@ namespace BrokenRailServer
             }
             return -1;
         }
+
+        public int FindClientIndex(int ClientId)
+        {
+            for (int i = 0; i < friends.Count; i++)
+            {
+                if (friends[i].ClientID == ClientId)
+                {
+                    if (friends[i].ApType == AccessPointType.AndroidClient || friends[i].ApType == AccessPointType.PCClient)
+                    {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        }
+
         private void errorAllRails()
         {
             foreach (var item in _rail1List)
