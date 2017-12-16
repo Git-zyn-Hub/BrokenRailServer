@@ -307,10 +307,10 @@ namespace BrokenRailServer
                 {
                     int length = frd.SocketImport.EndReceive(ar);
 
-                    this.Dispatcher.Invoke(new Action(() =>
-                    {
-                        AppendMessage("处理前长度" + length, DataLevel.Normal);
-                    }));
+                    //this.Dispatcher.Invoke(new Action(() =>
+                    //{
+                    //    AppendMessage("处理前长度" + length, DataLevel.Normal);
+                    //}));
                     if (length == 0)
                     {
                         this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
@@ -353,17 +353,17 @@ namespace BrokenRailServer
                         lock (lockObject)
                         {
                             frd.HandleDuanBao(ref length);
-                            this.Dispatcher.Invoke(new Action(() =>
-                            {
-                                AppendMessage("处理断包后长度" + length, DataLevel.Error);
-                            }));
+                            //this.Dispatcher.Invoke(new Action(() =>
+                            //{
+                            //    AppendMessage("处理断包后长度" + length, DataLevel.Error);
+                            //}));
 
                             handleNianBao: bool nianBao = frd.HandleNianBao(ref length);
 
-                            this.Dispatcher.Invoke(new Action(() =>
-                            {
-                                AppendMessage("处理粘包后长度" + length, DataLevel.Error);
-                            }));
+                            //this.Dispatcher.Invoke(new Action(() =>
+                            //{
+                            //    AppendMessage("处理粘包后长度" + length, DataLevel.Error);
+                            //}));
 
                             handleData:
                             string originData = preAnalyseData(frd.Rcvbuffer, length);
@@ -377,6 +377,7 @@ namespace BrokenRailServer
                                 setAccessPointTypeAndClientID(frd, originData);
                                 transmitData(frd, length);
                                 setLabelPackageCountColor();
+                                removeRepeatAndroid(frd);
                             }));
 
                             if (nianBao)
@@ -643,6 +644,20 @@ namespace BrokenRailServer
         {
             try
             {
+                for (int i = 0; i < MasterControlList.Count; i++)
+                {
+                    if (MasterControlList[i].Is4G)
+                    {
+                        if (MasterControlList[i].IsOnline)
+                        {
+                            break;
+                        }
+                    }
+                    if (i == MasterControlList.Count - 1)
+                    {
+                        return;
+                    }
+                }
                 this.WaitingRingEnable();
                 //this.WaitReceiveTimer.Start();
 
@@ -1327,7 +1342,7 @@ namespace BrokenRailServer
                 {
                     if (!item.Is4G)
                     {
-                        AppendMessage("心跳包中包含的终端号" + intTerminalNo.ToString() + "所示终端不是4G点，\r\n请检查心跳数据内容配置或者config文档！", DataLevel.Error);
+                        AppendMessage("心跳包中包含的终端号" + intTerminalNo.ToString() + "所示终端不是4G点，请检查心跳数据内容配置或者config文档！", DataLevel.Error);
                         return;
                     }
                     else if (!socketIsRegisted(intTerminalNo))
@@ -1431,6 +1446,26 @@ namespace BrokenRailServer
                     {
                         RemoveMethod(terminal);
                         break;
+                    }
+                }
+            }
+        }
+
+        private void removeRepeatAndroid(TerminalAndClientUserControl frd)
+        {
+            for (int i = 0; i < friends.Count; i++)
+            {
+                int indexOfNewAndroid = friends.IndexOf(frd);
+                if (i != indexOfNewAndroid)
+                {
+                    if (friends[i] != null && friends[i].ApType == AccessPointType.AndroidClient)
+                    {
+                        if (frd.MacAddress == friends[i].MacAddress)
+                        {
+                            RemoveMethod(friends[i]);
+                            AppendMessage("移除重复的Android用户", DataLevel.Error);
+                            break;
+                        }
                     }
                 }
             }
