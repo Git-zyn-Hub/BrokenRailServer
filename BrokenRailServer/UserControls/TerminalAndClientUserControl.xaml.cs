@@ -37,6 +37,7 @@ namespace BrokenRailServer
         public List<byte[]> RememberBuffers = new List<byte[]>();
         private string _ipAndPort;
         private byte[] _packageUnhandled = new byte[0];
+        private bool _isSubscribing = false;
 
         public AccessPointType ApType
         {
@@ -111,6 +112,23 @@ namespace BrokenRailServer
             set
             {
                 _packageUnhandled = value;
+            }
+        }
+
+        public bool IsSubscribing
+        {
+            get
+            {
+                return _isSubscribing;
+            }
+
+            set
+            {
+                if (_isSubscribing != value)
+                {
+                    _isSubscribing = value;
+                    OnPropertyChanged("IsSubscribing");
+                }
             }
         }
 

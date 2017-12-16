@@ -544,6 +544,17 @@ namespace BrokenRailServer
                 {
                     case (byte)CommandType.GetOneSectionInfo:
                         return _subscribingClient;
+                    case (byte)CommandType.ImmediatelyRespond:
+                        {
+                            switch (sourceFriend.Rcvbuffer[7])
+                            {
+                                case (byte)CommandType.GetOneSectionInfo:
+                                    return _subscribingClient;
+                                default:
+                                    break;
+                            }
+                        }
+                        break;
                     default:
                         break;
                 }
@@ -1273,6 +1284,7 @@ namespace BrokenRailServer
                                     int indexOfClient = FindClientIndex(data[3]);
                                     if (indexOfClient != -1)
                                     {
+                                        friends[indexOfClient].IsSubscribing = true;
                                         AppendMessage(friends[indexOfClient].ToString() + "订阅所有终端铁轨信息", DataLevel.Default);
                                     }
                                 }
@@ -1281,6 +1293,7 @@ namespace BrokenRailServer
                                     int indexOfClient = FindClientIndex(data[3]);
                                     if (indexOfClient != -1)
                                     {
+                                        friends[indexOfClient].IsSubscribing = false;
                                         AppendMessage(friends[indexOfClient].ToString() + "取消订阅", DataLevel.Default);
                                     }
                                 }

@@ -10,7 +10,7 @@
         <local:AccessPointTerminal2VisibilityConverter x:Key="terminal2VisibilityConverter"/>
         <local:AccessPointPCClient2VisibilityConverter x:Key="pcClient2VisibilityConverter"/>
         <local:AccessPointAndroidClient2VisibilityConverter x:Key="androidClient2VisibilityConverter"/>
-
+        <local:Bool2VisibilityConverter x:Key="bool2VisibilityConverter"/>
         <Style TargetType="Path">
             <Setter Property="Margin" Value="5,0"/>
         </Style>
@@ -19,6 +19,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="30"/>
             <ColumnDefinition Width="40"/>
+            <ColumnDefinition Width="6"/>
             <ColumnDefinition Width="241*"/>
             <ColumnDefinition Width="33"/>
         </Grid.ColumnDefinitions>
@@ -37,7 +38,8 @@
             </Canvas>
          </StackPanel>
         <Label x:Name="lblClientID" Grid.Column="1" Content="{Binding ClientID}" FontWeight="Bold"></Label>
-        <Label x:Name="lblIpAndPort" Grid.Column="2"></Label>
-        <CheckBox x:Name="cbxSelected" Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center"></CheckBox>
+        <Label Grid.Column="2" Foreground="Red" Padding="0 5" Visibility="{Binding IsSubscribing,Converter={StaticResource bool2VisibilityConverter}}">↓</Label>
+        <Label x:Name="lblIpAndPort" Grid.Column="3"></Label>
+        <CheckBox x:Name="cbxSelected" Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center"></CheckBox>
     </Grid>
 </UserControl>
