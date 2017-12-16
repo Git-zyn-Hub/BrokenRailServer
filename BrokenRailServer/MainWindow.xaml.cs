@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -1204,6 +1205,7 @@ namespace BrokenRailServer
                 {
                     FileServer server = new FileServer(fileClient, AppendMessage);
                     server.FreshDevices += devicesInitial;
+                    server.Broadcast += BroadcastUp;
                     server.Listener = fileListener;
                     server.BeginRead();
                 }));
@@ -1591,6 +1593,19 @@ namespace BrokenRailServer
                 this.Dispatcher.Invoke(new Action(() => { RemoveMethod(frd); }));
             }
         }
+
+        private void BroadcastUp(byte dataType, byte[] dataContent)
+        {
+            foreach (var item in friends)
+            {
+                TerminalAndClientUserControl destFriend = item as TerminalAndClientUserControl;
+                if (destFriend != null && (destFriend.ApType == AccessPointType.PCClient || destFriend.ApType == AccessPointType.AndroidClient))
+                {
+                    byte[] data = SendDataPackage.PackageSendData(0xff, (byte)destFriend.ClientID, dataType, dataContent);
+                    SendData(destFriend, data);
+                }
+            }
+        }
         public static String bytesToHexString(byte[] src, int length)
         {
             StringBuilder stringBuilder = new StringBuilder("");
@@ -1898,6 +1913,19 @@ namespace BrokenRailServer
                 }
             }
             return -1;
+        }
+
+        /// <summary>
+        /// 获取文件大小
+        /// </summary>
+        /// <param name="sFullName"></param>
+        /// <returns></returns>
+        public static long GetFileSize(string sFullName)
+        {
+            long lSize = 0;
+            if (File.Exists(sFullName))
+                lSize = new FileInfo(sFullName).Length;
+            return lSize;
         }
 
         private void errorAllRails()

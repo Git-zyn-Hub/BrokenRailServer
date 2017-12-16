@@ -22,6 +22,8 @@ namespace BrokenRailServer.SendReceiveFile
         public event ShowMessageEventHandler ShowMessage;
         public delegate void FreshDevicesEventHandler();
         public event FreshDevicesEventHandler FreshDevices;
+        public delegate void BroadcastEventHandler(byte dataType, byte[] dataContent);
+        public event BroadcastEventHandler Broadcast;
         public TcpListener Listener { get; set; }
 
 
@@ -69,6 +71,9 @@ namespace BrokenRailServer.SendReceiveFile
                     {
                         ShowMessage?.Invoke("Client offline.", DataLevel.Error);
                         FreshDevices?.Invoke();
+                        long configFileSize = GetFileSize(AppDomain.CurrentDomain.BaseDirectory + "\\config.xml");
+                        ShowMessage?.Invoke("配置文件大小为" + configFileSize, DataLevel.Default);
+                        broadcastConfigFileSize(configFileSize);
                     }));
                     client.Close();
                     if (Listener != null)
@@ -307,6 +312,28 @@ namespace BrokenRailServer.SendReceiveFile
             {
                 ShowMessage?.Invoke(ex.Message, DataLevel.Error);
             }
+        }
+
+        /// <summary>
+        /// 获取文件大小
+        /// </summary>
+        /// <param name="sFullName"></param>
+        /// <returns></returns>
+        public static long GetFileSize(string sFullName)
+        {
+            long lSize = 0;
+            if (File.Exists(sFullName))
+                lSize = new FileInfo(sFullName).Length;
+            return lSize;
+        }
+
+        private void broadcastConfigFileSize(long size)
+        {
+            byte[] bytesSize = new byte[3];
+            bytesSize[0] = (byte)((size & 0xff0000) >> 16);
+            bytesSize[1] = (byte)((size & 0xff00) >> 8);
+            bytesSize[2] = (byte)(size & 0xff);
+            Broadcast?.Invoke((byte)CommandType.BroadcastConfigFileSize, bytesSize);
         }
     }
 }
