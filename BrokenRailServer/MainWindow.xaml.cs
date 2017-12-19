@@ -41,6 +41,7 @@ namespace BrokenRailServer
         List<TerminalAndClientUserControl> friends = new List<TerminalAndClientUserControl>();
         //保存与客户相关的信息列表
         private List<TerminalAndClientUserControl> _subscribingClient = new List<TerminalAndClientUserControl>();
+        private TerminalAndClientUserControl _getPointRailInfoClient = null;
         //负责监听的套接字
         TcpListener listener;
         //只是是否启动了监听
@@ -295,7 +296,11 @@ namespace BrokenRailServer
                 //套接字Listener被关闭，则设置为未启动侦听状态
                 //AppendMessage(ee.Message);
                 IsStart = false;
-                this.Dispatcher.Invoke(new Action(() => { this.btnStartListening.IsEnabled = true; }));
+                this.Dispatcher.Invoke(new Action(() =>
+                {
+                    this.btnStartListening.IsEnabled = true;
+                    //AppendMessage("接收连接异常", DataLevel.Error);
+                }));
             }
         }
         bool canMerge = false;
@@ -556,6 +561,16 @@ namespace BrokenRailServer
                             }
                         }
                         break;
+                    case (byte)CommandType.GetPointRailInfo:
+                        {
+                            if (_getPointRailInfoClient != null)
+                            {
+                                result.Add(_getPointRailInfoClient);
+                                _getPointRailInfoClient = null;
+                                return result;
+                            }
+                            return result;
+                        }
                     default:
                         break;
                 }
@@ -639,6 +654,9 @@ namespace BrokenRailServer
                                     break;
                                 case (byte)CommandType.ImmediatelyRespond:
                                     handleImmediatelyRespond(actualReceive);
+                                    break;
+                                case (byte)CommandType.GetPointRailInfo:
+                                    _getPointRailInfoClient = frd;
                                     break;
                                 default:
                                     break;
