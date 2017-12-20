@@ -283,13 +283,13 @@ namespace BrokenRailServer.UserControls
                     _mainWin.WaitingRingEnable();
                     //_mainWin.WaitReceiveTimer.Start();
                 }
-                byte[] sendData = SendDataPackage.PackageSendData(0xff, (byte)_terminalNumber, 
+                byte[] sendData = SendDataPackage.PackageSendData(0xff, (byte)_terminalNumber,
                     (byte)CommandType.GetPointRailInfo, new byte[2] { 0, 0 });
-                Socket socketGet = GetNearest4GTerminalSocket(true);
+                TerminalAndClientUserControl socketGet = GetNearest4GTerminalSocket(true);
                 if (socketGet != null)
                 {
                     _mainWin.DecideDelayOrNot();
-                    socketGet.Send(sendData, SocketFlags.None);
+                    _mainWin.SendData(socketGet, sendData);
                 }
                 else
                 {
@@ -378,11 +378,11 @@ namespace BrokenRailServer.UserControls
                 byte[] sendData = SendDataPackage.PackageSendData(0xff, (byte)_terminalNumber, (byte)CommandType.ConfigInitialInfo, new byte[6] { (byte)newInitialInfoConfigWin.TerminalNo,
                     (byte)newInitialInfoConfigWin.NeighbourSmallSecondary, (byte)newInitialInfoConfigWin.NeighbourSmall,
                     (byte)newInitialInfoConfigWin.NeighbourBig, (byte)newInitialInfoConfigWin.NeighbourBigSecondary,0x00 });
-                Socket socketGet = GetNearest4GTerminalSocket(true);
+                TerminalAndClientUserControl socketGet = GetNearest4GTerminalSocket(true);
                 if (socketGet != null)
                 {
                     _mainWin.DecideDelayOrNot();
-                    socketGet.Send(sendData, SocketFlags.None);
+                    _mainWin.SendData(socketGet, sendData);
                 }
                 else
                 {
@@ -405,11 +405,11 @@ namespace BrokenRailServer.UserControls
                     //_mainWin.WaitReceiveTimer.Start();
                 }
                 byte[] sendData = SendDataPackage.PackageSendData(0xff, (byte)_terminalNumber, (byte)CommandType.ReadPointInfo, new byte[1] { (byte)_terminalNumber });
-                Socket socketGet = GetNearest4GTerminalSocket(true);
+                TerminalAndClientUserControl socketGet = GetNearest4GTerminalSocket(true);
                 if (socketGet != null)
                 {
                     _mainWin.DecideDelayOrNot();
-                    socketGet.Send(sendData, SocketFlags.None);
+                    _mainWin.SendData(socketGet, sendData);
                 }
                 else
                 {
@@ -477,11 +477,11 @@ namespace BrokenRailServer.UserControls
                 }
                 byte[] sendData = SendDataPackage.PackageSendData(0xff, (byte)_terminalNumber, 0xf2,
                     new byte[2] { (byte)newThresholdSettingWin.ThresholdRail1, (byte)newThresholdSettingWin.ThresholdRail2 });
-                Socket socketGet = GetNearest4GTerminalSocket(true);
+                TerminalAndClientUserControl socketGet = GetNearest4GTerminalSocket(true);
                 if (socketGet != null)
                 {
                     _mainWin.DecideDelayOrNot();
-                    socketGet.Send(sendData, SocketFlags.None);
+                    _mainWin.SendData(socketGet, sendData);
                 }
                 else
                 {
@@ -510,11 +510,11 @@ namespace BrokenRailServer.UserControls
                                (byte)newGetHistoryWin.HourStart,(byte)newGetHistoryWin.MinuteStart,(byte)newGetHistoryWin.SecondStart,
                                (byte)newGetHistoryWin.YearEnd,(byte)newGetHistoryWin.MonthEnd,(byte)newGetHistoryWin.DayEnd,
                                (byte)newGetHistoryWin.HourEnd,(byte)newGetHistoryWin.MinuteEnd,(byte)newGetHistoryWin.SecondEnd });
-            Socket socketGet = GetNearest4GTerminalSocket(true);
+            TerminalAndClientUserControl socketGet = GetNearest4GTerminalSocket(true);
             if (socketGet != null)
             {
                 _mainWin.DecideDelayOrNot();
-                socketGet.Send(sendData, SocketFlags.None);
+                _mainWin.SendData(socketGet, sendData);
             }
             else
             {
@@ -522,7 +522,7 @@ namespace BrokenRailServer.UserControls
             }
         }
 
-        public Socket GetNearest4GTerminalSocket(bool isForward)
+        public TerminalAndClientUserControl GetNearest4GTerminalSocket(bool isForward)
         {
             if (this.Is4G)
             {
@@ -620,11 +620,11 @@ namespace BrokenRailServer.UserControls
                 return null;
             }
         }
-        private Socket getTerminalSocket()
+        private TerminalAndClientUserControl getTerminalSocket()
         {
             if (Terminal != null)
             {
-                return this.Terminal.SocketImport;
+                return this.Terminal;
             }
             return null;
         }

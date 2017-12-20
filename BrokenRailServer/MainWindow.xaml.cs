@@ -1,4 +1,5 @@
 ﻿using BrokenRailMonitorViaWiFi;
+using BrokenRailMonitorViaWiFi.Windows;
 using BrokenRailServer.SendReceiveFile;
 using BrokenRailServer.UserControls;
 using System;
@@ -57,6 +58,7 @@ namespace BrokenRailServer
         private object lockObject = new object();
         private DispatcherTimer _getAllRailInfoTimer = new DispatcherTimer();
         private DispatcherTimer _timeToWaitTimer = new DispatcherTimer();
+        private DispatcherTimer _waitReceiveTimer = new DispatcherTimer();
 
         public int PackageCount
         {
@@ -98,6 +100,18 @@ namespace BrokenRailServer
                 _socketRegister = value;
             }
         }
+        public DispatcherTimer WaitReceiveTimer
+        {
+            get
+            {
+                return _waitReceiveTimer;
+            }
+
+            set
+            {
+                _waitReceiveTimer = value;
+            }
+        }
 
         public MainWindow()
         {
@@ -111,12 +125,21 @@ namespace BrokenRailServer
                 }
                 _getAllRailInfoTimer.Tick += getAllRailInfoTimer_Tick;
                 _getAllRailInfoTimer.Interval = new TimeSpan(0, 0, 75);
+
+                WaitReceiveTimer.Tick += WaitReceiveTimer_Tick;
+                WaitReceiveTimer.Interval = new TimeSpan(0, 0, 20);
             }
             catch (Exception ee)
             {
                 AppendMessage("主窗口构造异常：" + ee.Message, DataLevel.Error);
             }
         }
+        private void WaitReceiveTimer_Tick(object sender, EventArgs e)
+        {
+            this.WaitingRingDisable();
+            AppendMessage("超过20秒未收到数据，连接可能已断开！", DataLevel.Error);
+        }
+
         private void btnClear_Click(object sender, RoutedEventArgs e)
         {
             PackageCount = 0;
@@ -653,10 +676,28 @@ namespace BrokenRailServer
                                     }
                                     break;
                                 case (byte)CommandType.ImmediatelyRespond:
-                                    handleImmediatelyRespond(actualReceive);
+                                    {
+                                        WaitingRingDisable();
+                                        handleImmediatelyRespond(actualReceive);
+                                    }
                                     break;
                                 case (byte)CommandType.GetPointRailInfo:
-                                    _getPointRailInfoClient = frd;
+                                    {
+                                        WaitingRingDisable();
+                                        _getPointRailInfoClient = frd;
+                                    }
+                                    break;
+                                case (byte)CommandType.ErrorReport:
+                                    {
+                                        this.WaitingRingDisable();
+                                        AppendMessage(actualReceive[7].ToString() + "号终端失联，未收到其返回的数据！", DataLevel.Error);
+                                    }
+                                    break;
+                                case (byte)CommandType.ReadPointInfo:
+                                    {
+                                        WaitingRingDisable();
+                                        handleReadPointInfo(actualReceive);
+                                    }
                                     break;
                                 default:
                                     break;
@@ -690,7 +731,6 @@ namespace BrokenRailServer
                     }
                 }
                 this.WaitingRingEnable();
-                //this.WaitReceiveTimer.Start();
 
                 if (_4GPointIndex.Count == 0)
                 {
@@ -704,7 +744,11 @@ namespace BrokenRailServer
                 {
                     for (int i = 0; i < _4GPointIndex.Count; i++)
                     {
-                        Socket socket = this.MasterControlList[_4GPointIndex[i]].GetNearest4GTerminalSocket(true);
+                        if (!MasterControlList[_4GPointIndex[i]].IsOnline)
+                        {
+                            continue;
+                        }
+                        TerminalAndClientUserControl socket = this.MasterControlList[_4GPointIndex[i]].GetNearest4GTerminalSocket(true);
                         byte[] sendData;
                         if (i == _4GPointIndex.Count - 1)
                         {
@@ -718,8 +762,7 @@ namespace BrokenRailServer
                         if (socket != null)
                         {
                             DecideDelayOrNot();
-                            socket.Send(sendData, SocketFlags.None);
-                            AppendDataMsg(sendData);
+                            SendData(socket, sendData);
                         }
                         else
                         {
@@ -757,6 +800,94 @@ namespace BrokenRailServer
                 actualReceive[i] = frd.Rcvbuffer[i];
             }
             return actualReceive;
+        }
+
+        private void handleReadPointInfo(byte[] actualReceive)
+        {
+            int terminalNo = actualReceive[7];
+            int i = 0;
+            int count = MasterControlList.Count;
+            bool isError = false;
+            this.Dispatcher.Invoke(new Action(() =>
+            {
+                foreach (var masterControl in MasterControlList)
+                {
+                    if (masterControl.TerminalNumber == terminalNo)
+                    {
+                        if (i == 0 || i == 1)
+                        {
+                            if (0 != actualReceive[8])
+                            {
+                                AppendMessage(terminalNo.ToString() + "号终端次级相邻小终端不为0！\r\n终端没有次级相邻小终端应填0", DataLevel.Error);
+                                isError = true;
+                            }
+                        }
+                        else
+                        {
+                            if (MasterControlList[i - 1].NeighbourSmall != actualReceive[8])
+                            {
+                                AppendMessage(terminalNo.ToString() + "号终端次级相邻小终端不匹配！\r\nconfig.xml配置文件中为"
+                                    + MasterControlList[i - 1].NeighbourSmall.ToString() + "收到的为" + actualReceive[8].ToString(), DataLevel.Error);
+                                isError = true;
+                            }
+                        }
+                        if (masterControl.NeighbourSmall != actualReceive[9])
+                        {
+                            AppendMessage(terminalNo.ToString() + "号终端相邻小终端不匹配！\r\nconfig.xml配置文件中为"
+                                    + masterControl.NeighbourSmall.ToString() + "收到的为" + actualReceive[9].ToString(), DataLevel.Error);
+                            isError = true;
+                        }
+                        if (masterControl.NeighbourBig != actualReceive[10])
+                        {
+                            AppendMessage(terminalNo.ToString() + "号终端相邻大终端不匹配！\r\nconfig.xml配置文件中为"
+                                    + masterControl.NeighbourBig.ToString() + "收到的为" + actualReceive[10].ToString(), DataLevel.Error);
+                            isError = true;
+                        }
+                        if (i == count - 2 || i == count - 1)
+                        {
+                            if (0xff != actualReceive[11])
+                            {
+                                AppendMessage(terminalNo.ToString() + "号终端次级相邻大终端不为255！\r\n终端没有次级相邻大终端应填255", DataLevel.Error);
+                                isError = true;
+                            }
+                        }
+                        else
+                        {
+                            if (MasterControlList[i + 1].NeighbourBig != actualReceive[11])
+                            {
+                                AppendMessage(terminalNo.ToString() + "号终端次级相邻大终端不匹配！\r\nconfig.xml配置文件中为"
+                                    + MasterControlList[i + 1].NeighbourBig.ToString() + "收到的为" + actualReceive[11].ToString(), DataLevel.Error);
+                                isError = true;
+                            }
+                        }
+                        if (!isError)
+                        {
+                            bool flashIsValid = false;
+                            if (actualReceive[12] == 1)
+                            {
+                                flashIsValid = true;
+                            }
+                            else if (actualReceive[12] == 0)
+                            {
+                                flashIsValid = false;
+                            }
+                            else
+                            {
+                                AppendMessage("‘Flash是否有效’字段收到未定义数据。按照无效处理！", DataLevel.Error);
+                            }
+                            PointConfigInfoWindow onePCIWin = new PointConfigInfoWindow(terminalNo, actualReceive[8], actualReceive[9], actualReceive[10], actualReceive[11], flashIsValid);
+                            onePCIWin.Owner = this;
+                            onePCIWin.ShowDialog();
+                        }
+                        break;
+                    }
+                    if (count - 1 == i)
+                    {
+                        AppendMessage(terminalNo.ToString() + "号终端不存在", DataLevel.Error);
+                    }
+                    i++;
+                }
+            }));
         }
 
         private void handleImmediatelyRespond(byte[] actualReceive)
@@ -1580,7 +1711,7 @@ namespace BrokenRailServer
             }
         }
 
-        private void SendData(TerminalAndClientUserControl frd, byte[] data)
+        public void SendData(TerminalAndClientUserControl frd, byte[] data)
         {
             try
             {
@@ -1667,6 +1798,7 @@ namespace BrokenRailServer
         {
             this.Dispatcher.BeginInvoke(new Action(() =>
             {
+                this.WaitReceiveTimer.Start();
                 this.modernProgressRing.IsActive = true;
                 this.gridMain.IsEnabled = false;
             }));
@@ -1676,6 +1808,7 @@ namespace BrokenRailServer
         {
             this.Dispatcher.BeginInvoke(new Action(() =>
             {
+                this.WaitReceiveTimer.Stop();
                 this.modernProgressRing.IsActive = false;
                 this.gridMain.IsEnabled = true;
             }));
@@ -1763,6 +1896,7 @@ namespace BrokenRailServer
             try
             {
                 clearTerminal();
+                WaitingRingDisable();
                 foreach (var item in MasterControlList)
                 {
                     item.Dispose();
