@@ -43,6 +43,7 @@ namespace BrokenRailServer
         //保存与客户相关的信息列表
         private List<TerminalAndClientUserControl> _subscribingClient = new List<TerminalAndClientUserControl>();
         private TerminalAndClientUserControl _getPointRailInfoClient = null;
+        private TerminalAndClientUserControl _readPointInfoClient = null;
         //负责监听的套接字
         TcpListener listener;
         //只是是否启动了监听
@@ -59,6 +60,8 @@ namespace BrokenRailServer
         private DispatcherTimer _getAllRailInfoTimer = new DispatcherTimer();
         private DispatcherTimer _timeToWaitTimer = new DispatcherTimer();
         private DispatcherTimer _waitReceiveTimer = new DispatcherTimer();
+        private bool _服务器请求单点配置信息 = false;
+        private Dictionary<string, bool> _serverRequest = new Dictionary<string, bool>();
 
         public int PackageCount
         {
@@ -110,6 +113,19 @@ namespace BrokenRailServer
             set
             {
                 _waitReceiveTimer = value;
+            }
+        }
+
+        public Dictionary<string, bool> ServerRequest
+        {
+            get
+            {
+                return _serverRequest;
+            }
+
+            set
+            {
+                _serverRequest = value;
             }
         }
 
@@ -594,6 +610,16 @@ namespace BrokenRailServer
                             }
                             return result;
                         }
+                    case (byte)CommandType.ReadPointInfo:
+                        {
+                            if (_readPointInfoClient != null)
+                            {
+                                result.Add(_readPointInfoClient);
+                                _readPointInfoClient = null;
+                                return result;
+                            }
+                            return result;
+                        }
                     default:
                         break;
                 }
@@ -620,7 +646,7 @@ namespace BrokenRailServer
                             AppendMessage("校验和出错！", DataLevel.Error);
                             return;
                         }
-
+                        //目的地址是服务器的情况。
                         if (data[4] == 0xff)
                         {
                             switch (data[5])
@@ -654,6 +680,23 @@ namespace BrokenRailServer
                                             {
                                                 _subscribingClient.Remove(frd);
                                             }
+                                        }
+                                    }
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        else //目的地址不是服务器的情况。
+                        {
+                            switch (data[5])
+                            {
+                                case (byte)CommandType.ReadPointInfo:
+                                    {
+                                        int indexOfClient = FindClientIndex(data[3]);//第三位为源地址。
+                                        if (indexOfClient != -1)
+                                        {
+                                            _readPointInfoClient = friends[indexOfClient];
                                         }
                                     }
                                     break;
@@ -696,7 +739,11 @@ namespace BrokenRailServer
                                 case (byte)CommandType.ReadPointInfo:
                                     {
                                         WaitingRingDisable();
-                                        handleReadPointInfo(actualReceive);
+                                        if (_服务器请求单点配置信息)
+                                        {
+                                            handleReadPointInfo(actualReceive);
+                                            _服务器请求单点配置信息 = false;
+                                        }
                                     }
                                     break;
                                 default:

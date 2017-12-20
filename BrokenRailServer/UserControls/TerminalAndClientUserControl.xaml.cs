@@ -135,7 +135,7 @@ namespace BrokenRailServer
         //清空接受缓存，在每一次新的接收之前都要调用该方法
         public void ClearBuffer()
         {
-            Rcvbuffer = new byte[2048];
+            Rcvbuffer = new byte[1024];
         }
         public void Dispose()
         {
