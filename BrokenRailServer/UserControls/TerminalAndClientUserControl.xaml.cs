@@ -279,7 +279,7 @@ namespace BrokenRailServer
             {
                 //原来是！=的时候进入判断，可能会造成unhandledLength为负值，导致数组越界。
                 //处理粘包的情况。
-                int unhandledLength = Rcvbuffer.Length - len;
+                int unhandledLength = length - len;
                 byte[] packagePrevious = new byte[len];
                 PackageUnhandled = new byte[unhandledLength];
                 for (int j = 0; j < len; j++)

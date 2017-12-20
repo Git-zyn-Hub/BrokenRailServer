@@ -404,12 +404,19 @@ namespace BrokenRailServer.UserControls
                     _mainWin.WaitingRingEnable();
                     //_mainWin.WaitReceiveTimer.Start();
                 }
+                else
+                {
+                    return;
+                }
                 byte[] sendData = SendDataPackage.PackageSendData(0xff, (byte)_terminalNumber, (byte)CommandType.ReadPointInfo, new byte[1] { (byte)_terminalNumber });
                 TerminalAndClientUserControl socketGet = GetNearest4GTerminalSocket(true);
+
                 if (socketGet != null)
                 {
                     _mainWin.DecideDelayOrNot();
                     _mainWin.SendData(socketGet, sendData);
+                    _mainWin.ServerRequest["服务器请求单点配置信息"] = true;
+                    _mainWin.AppendMessage("服务器请求单点配置信息", DataLevel.Default);
                 }
                 else
                 {

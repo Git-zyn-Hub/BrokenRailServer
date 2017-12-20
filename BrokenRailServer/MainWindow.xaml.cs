@@ -60,7 +60,7 @@ namespace BrokenRailServer
         private DispatcherTimer _getAllRailInfoTimer = new DispatcherTimer();
         private DispatcherTimer _timeToWaitTimer = new DispatcherTimer();
         private DispatcherTimer _waitReceiveTimer = new DispatcherTimer();
-        private bool _服务器请求单点配置信息 = false;
+        private bool _ = false;
         private Dictionary<string, bool> _serverRequest = new Dictionary<string, bool>();
 
         public int PackageCount
@@ -144,6 +144,8 @@ namespace BrokenRailServer
 
                 WaitReceiveTimer.Tick += WaitReceiveTimer_Tick;
                 WaitReceiveTimer.Interval = new TimeSpan(0, 0, 20);
+
+                ServerRequest.Add("服务器请求单点配置信息", false);
             }
             catch (Exception ee)
             {
@@ -418,12 +420,12 @@ namespace BrokenRailServer
                             this.Dispatcher.Invoke(new Action(() =>
                             {
                                 AppendMessage(data, DataLevel.Default);
-                                MessageRecvHandleCenter(frd.Rcvbuffer, length);
                                 handleData(frd, length);
                                 setAccessPointTypeAndClientID(frd, originData);
                                 transmitData(frd, length);
                                 setLabelPackageCountColor();
                                 removeRepeatAndroid(frd);
+                                MessageRecvHandleCenter(frd.Rcvbuffer, length);
                             }));
 
                             if (nianBao)
@@ -700,6 +702,12 @@ namespace BrokenRailServer
                                         }
                                     }
                                     break;
+                                case (byte)CommandType.GetPointRailInfo:
+                                    {
+                                        WaitingRingDisable();
+                                        _getPointRailInfoClient = frd;
+                                    }
+                                    break;
                                 default:
                                     break;
                             }
@@ -724,12 +732,6 @@ namespace BrokenRailServer
                                         handleImmediatelyRespond(actualReceive);
                                     }
                                     break;
-                                case (byte)CommandType.GetPointRailInfo:
-                                    {
-                                        WaitingRingDisable();
-                                        _getPointRailInfoClient = frd;
-                                    }
-                                    break;
                                 case (byte)CommandType.ErrorReport:
                                     {
                                         this.WaitingRingDisable();
@@ -739,10 +741,10 @@ namespace BrokenRailServer
                                 case (byte)CommandType.ReadPointInfo:
                                     {
                                         WaitingRingDisable();
-                                        if (_服务器请求单点配置信息)
+                                        if (ServerRequest["服务器请求单点配置信息"])
                                         {
                                             handleReadPointInfo(actualReceive);
-                                            _服务器请求单点配置信息 = false;
+                                            ServerRequest["服务器请求单点配置信息"] = false;
                                         }
                                     }
                                     break;
@@ -1494,6 +1496,14 @@ namespace BrokenRailServer
                                         friends[indexOfClient].IsSubscribing = false;
                                         AppendMessage(friends[indexOfClient].ToString() + "取消订阅", DataLevel.Default);
                                     }
+                                }
+                            }
+                            break;
+                        case (byte)CommandType.ReadPointInfo:
+                            {
+                                if (_readPointInfoClient != null)
+                                {
+                                    AppendMessage(_readPointInfoClient.ToString() + "读取单点配置信息", DataLevel.Default);
                                 }
                             }
                             break;
