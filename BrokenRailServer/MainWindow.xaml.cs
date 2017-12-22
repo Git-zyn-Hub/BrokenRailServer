@@ -532,50 +532,47 @@ namespace BrokenRailServer
         private List<TerminalAndClientUserControl> decideDestFriendsDown(TerminalAndClientUserControl sourceFriend, int length)
         {
             List<TerminalAndClientUserControl> result = new List<TerminalAndClientUserControl>();
-            if (length > 6)
+            if (length > 6 && sourceFriend.Rcvbuffer[0] == 0x55 && sourceFriend.Rcvbuffer[1] == 0xaa)
             {
                 switch (sourceFriend.Rcvbuffer[5])
                 {
-                    case (byte)CommandType.ReadPointInfo:
-                        {
-                            int destTerminalNo = sourceFriend.Rcvbuffer[4];
-                            int indexDest = FindMasterControlIndex(destTerminalNo);
-
-                            for (int i = indexDest; i >= 0; i--)
-                            {
-                                if (MasterControlList[i].Is4G && MasterControlList[i].IsOnline)
-                                {
-                                    result.Add(MasterControlList[i].Terminal);
-                                    return result;
-                                }
-                            }
-                        }
-                        break;
                     case (byte)CommandType.RealTimeConfig:
                         {
-                            int destTerminalNo = sourceFriend.Rcvbuffer[6];
-                            int indexDest = FindMasterControlIndex(destTerminalNo);
-
-                            for (int i = indexDest; i >= 0; i--)
-                            {
-                                if (MasterControlList[i].Is4G && MasterControlList[i].IsOnline)
-                                {
-                                    result.Add(MasterControlList[i].Terminal);
-                                    return result;
-                                }
-                            }
+                            return getDestTerminal(sourceFriend, 6);
                         }
-                        break;
                     case (byte)CommandType.SubscribeAllRailInfo:
                     case (byte)CommandType.RequestConfig:
                     case (byte)CommandType.UploadConfig:
                         return result;
+                    case (byte)CommandType.ReadPointInfo:
+                    case (byte)CommandType.GetPointRailInfo:
+                        {
+                            return getDestTerminal(sourceFriend, 4);
+                        }
                     default:
                         break;
                 }
             }
             return friends;
         }
+
+        private List<TerminalAndClientUserControl> getDestTerminal(TerminalAndClientUserControl sourceFriend, int indexOfTerminalNo)
+        {
+            List<TerminalAndClientUserControl> result = new List<TerminalAndClientUserControl>();
+            int destTerminalNo = sourceFriend.Rcvbuffer[indexOfTerminalNo];
+            int indexDest = FindMasterControlIndex(destTerminalNo);
+
+            for (int i = indexDest; i >= 0; i--)
+            {
+                if (MasterControlList[i].Is4G && MasterControlList[i].IsOnline)
+                {
+                    result.Add(MasterControlList[i].Terminal);
+                    return result;
+                }
+            }
+            return result;
+        }
+
         /// <summary>
         /// 决定目的用户，是哪个电脑或者手机
         /// </summary>
