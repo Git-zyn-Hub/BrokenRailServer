@@ -1,5 +1,6 @@
 ﻿using BrokenRailMonitorViaWiFi;
 using BrokenRailMonitorViaWiFi.Windows;
+using BrokenRailServer.Classes;
 using BrokenRailServer.SendReceiveFile;
 using BrokenRailServer.UserControls;
 using System;
@@ -62,6 +63,7 @@ namespace BrokenRailServer
         private DispatcherTimer _waitReceiveTimer = new DispatcherTimer();
         private bool _ = false;
         private Dictionary<string, bool> _serverRequest = new Dictionary<string, bool>();
+        private XmlHelper _xmlHelper = new XmlHelper();
 
         public int PackageCount
         {
@@ -146,6 +148,8 @@ namespace BrokenRailServer
                 WaitReceiveTimer.Interval = new TimeSpan(0, 0, 20);
 
                 ServerRequest.Add("服务器请求单点配置信息", false);
+                _xmlHelper.XmlPath = AppDomain.CurrentDomain.BaseDirectory + "\\remember.xml";
+                _xmlHelper.XmlInitial();
             }
             catch (Exception ee)
             {
@@ -420,12 +424,13 @@ namespace BrokenRailServer
                             this.Dispatcher.Invoke(new Action(() =>
                             {
                                 AppendMessage(data, DataLevel.Default);
+                                MessageRecvHandleCenter(frd.Rcvbuffer, length);
                                 handleData(frd, length);
                                 setAccessPointTypeAndClientID(frd, originData);
                                 transmitData(frd, length);
                                 setLabelPackageCountColor();
                                 removeRepeatAndroid(frd);
-                                MessageRecvHandleCenter(frd.Rcvbuffer, length);
+                                MessageRecvHandleCenterAfterHandle(frd.Rcvbuffer, length);
                             }));
 
                             if (nianBao)
@@ -679,6 +684,26 @@ namespace BrokenRailServer
                                             {
                                                 _subscribingClient.Remove(frd);
                                             }
+                                        }
+                                    }
+                                    break;
+                                case (byte)CommandType.ConfigInitialInfoPassword:
+                                    {
+                                        int lengthInData = data[2];
+                                        string pwd = Encoding.UTF8.GetString(data, 6, lengthInData - 7);
+                                        string pwdLocal = _xmlHelper.GetXmlElementValue("ConfigInitialInfoPassword");
+                                        byte[] sendData;
+                                        if (pwd == pwdLocal)
+                                        {
+                                            sendData = SendDataPackage.PackageSendData(0xff, data[3], (byte)CommandType.ConfigInitialInfoPassword, new byte[] { 0 });
+                                            SendData(frd, sendData);
+                                            AppendMessage("通知" + frd.ToString() + "的密码正确", DataLevel.Normal);
+                                        }
+                                        else
+                                        {
+                                            sendData = SendDataPackage.PackageSendData(0xff, data[3], (byte)CommandType.ConfigInitialInfoPassword, new byte[] { 0xff });
+                                            SendData(frd, sendData);
+                                            AppendMessage("通知" + frd.ToString() + "的密码错误", DataLevel.Error);
                                         }
                                     }
                                     break;
@@ -1504,6 +1529,44 @@ namespace BrokenRailServer
                                 }
                             }
                             break;
+                        case (byte)CommandType.ConfigInitialInfoPassword:
+                            {
+                                int indexOfClient = FindClientIndex(data[3]);
+                                if (indexOfClient != -1)
+                                {
+                                    AppendMessage("收到" + friends[indexOfClient].ToString() + "发送的密码", DataLevel.Default);
+                                }
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                else if (data[0] == 0x66 && data[1] == 0xcc)
+                {
+
+                }
+            }
+        }
+
+        private void MessageRecvHandleCenterAfterHandle(byte[] data, int length)
+        {
+            if (data.Length > 8)
+            {
+                if (data[0] == 0x55 && data[1] == 0xaa)
+                {
+                    switch (data[5])
+                    {
+                        case (byte)CommandType.ReadPointInfo:
+                            {
+                                if (_readPointInfoClient != null)
+                                {
+                                    AppendMessage(_readPointInfoClient.ToString() + "读取单点配置信息", DataLevel.Default);
+                                }
+                            }
+                            break;
+                        case (byte)CommandType.ConfigInitialInfoPassword:
+                        case (byte)CommandType.SubscribeAllRailInfo:
                         default:
                             break;
                     }

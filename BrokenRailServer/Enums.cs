@@ -13,6 +13,7 @@ namespace BrokenRailServer
         UploadConfig = 0xA2,
         SubscribeAllRailInfo = 0xA3,
         BroadcastConfigFileSize = 0xA4,
+        ConfigInitialInfoPassword = 0xA5,
         ConfigInitialInfo = 0xF0,
         ReadPointInfo = 0xF1,
         ThresholdSetting = 0xF2,

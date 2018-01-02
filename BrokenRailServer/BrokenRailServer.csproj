@@ -69,6 +69,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Classes\XmlHelper.cs" />
     <Compile Include="Classes\ModernProgressRing.cs" />
     <Compile Include="Classes\SendDataPackage.cs" />
     <Compile Include="Classes\ValidationRules.cs" />
