@@ -695,13 +695,13 @@ namespace BrokenRailServer
                                         byte[] sendData;
                                         if (pwd == pwdLocal)
                                         {
-                                            sendData = SendDataPackage.PackageSendData(0xff, data[3], (byte)CommandType.ConfigInitialInfoPassword, new byte[] { 0 });
+                                            sendData = SendDataPackage.PackageRespondData(0xff, data[3], (byte)CommandType.ConfigInitialInfoPassword, new byte[] { 0 });
                                             SendData(frd, sendData);
                                             AppendMessage("通知" + frd.ToString() + "的密码正确", DataLevel.Normal);
                                         }
                                         else
                                         {
-                                            sendData = SendDataPackage.PackageSendData(0xff, data[3], (byte)CommandType.ConfigInitialInfoPassword, new byte[] { 0xff });
+                                            sendData = SendDataPackage.PackageRespondData(0xff, data[3], (byte)CommandType.ConfigInitialInfoPassword, new byte[] { 0xff });
                                             SendData(frd, sendData);
                                             AppendMessage("通知" + frd.ToString() + "的密码错误", DataLevel.Error);
                                         }
