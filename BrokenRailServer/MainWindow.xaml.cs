@@ -1521,14 +1521,6 @@ namespace BrokenRailServer
                                 }
                             }
                             break;
-                        case (byte)CommandType.ReadPointInfo:
-                            {
-                                if (_readPointInfoClient != null)
-                                {
-                                    AppendMessage(_readPointInfoClient.ToString() + "读取单点配置信息", DataLevel.Default);
-                                }
-                            }
-                            break;
                         case (byte)CommandType.ConfigInitialInfoPassword:
                             {
                                 int indexOfClient = FindClientIndex(data[3]);
@@ -1536,6 +1528,11 @@ namespace BrokenRailServer
                                 {
                                     AppendMessage("收到" + friends[indexOfClient].ToString() + "发送的密码", DataLevel.Default);
                                 }
+                            }
+                            break;
+                        case (byte)CommandType.GetPointRailInfo:
+                            {
+                                AppendClientMsg(data[3], "获取单点铁轨信息", DataLevel.Default);
                             }
                             break;
                         default:
@@ -1737,6 +1734,15 @@ namespace BrokenRailServer
             sb.Append("分配用户ID：");
             sb.Append(frd.ClientID);
             AppendMessage(sb.ToString(), DataLevel.Normal);
+        }
+
+        private void AppendClientMsg(int clientID, string msg, DataLevel level)
+        {
+            int indexOfClient = FindClientIndex(clientID);
+            if (indexOfClient != -1)
+            {
+                AppendMessage(friends[indexOfClient].ToString() + msg, level);
+            }
         }
 
         private void disregistSocketAndOfflineTerminal(TerminalAndClientUserControl frd)
