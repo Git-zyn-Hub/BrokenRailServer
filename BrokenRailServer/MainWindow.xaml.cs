@@ -64,6 +64,8 @@ namespace BrokenRailServer
         private bool _ = false;
         private Dictionary<string, bool> _serverRequest = new Dictionary<string, bool>();
         private XmlHelper _xmlHelper = new XmlHelper();
+        private bool _hexSend = false;
+        private SplitEnum _splitEnum;
 
         public int PackageCount
         {
@@ -179,7 +181,7 @@ namespace BrokenRailServer
                     txtSend.Focus();
                     return;
                 }
-                string strSend = this.txtSend.Text;
+
                 foreach (TerminalAndClientUserControl item in this.stpIpAndPortContainer.Children)
                 {
                     if (item.cbxSelected.IsChecked == true)
@@ -189,7 +191,19 @@ namespace BrokenRailServer
                             AppendMessage(item.lblIpAndPort.Content + "网络未连接！", DataLevel.Error);
                             continue;
                         }
-                        SendData(item, strSend);
+                        if (_hexSend)
+                        {
+                            byte[] sendData = getSendBytesHex();
+                            if (sendData != null)
+                            {
+                                SendData(item, sendData);
+                            }
+                        }
+                        else
+                        {
+                            string strSend = this.txtSend.Text;
+                            SendData(item, strSend);
+                        }
                     }
                 }
                 //if (comboBoxClient.SelectedIndex < 0)
@@ -1975,12 +1989,13 @@ namespace BrokenRailServer
             }
             else
             {
+                _timeToWaitTimer = new DispatcherTimer();
                 if (!_timeToWaitTimer.IsEnabled)
                 {
                     DateTime now = System.DateTime.Now;
                     int totalSecondToNow = now.Hour * 3600 + now.Minute * 60 + now.Second;
                     int timeToSend = 75 - (totalSecondToNow % 75);
-
+                    
                     _timeToWaitTimer.Tick += (s, ee) =>
                     {
                         _timeToWaitTimer.Stop();
@@ -2217,6 +2232,88 @@ namespace BrokenRailServer
                     rail2.Error();
                 }
             }
+        }
+
+        public enum SplitEnum
+        {
+            Void, //无分隔符
+            Blank,//空格分隔
+            Dash  //中划线分隔
+        }
+        private byte[] getSendBytesHex()
+        {
+            string strInput = this.txtSend.Text.Trim();
+            int length = strInput.Length;
+            switch (_splitEnum)
+            {
+                case SplitEnum.Void:
+                    {
+                        if (length % 2 != 0)
+                        {
+                            MessageBox.Show("字符个数必须能被2整除", "出错了", MessageBoxButton.OK, MessageBoxImage.Error);
+                            return null;
+                        }
+                        int count = length / 2;
+                        string[] strInputs = new string[count];
+                        byte[] byteInput = new byte[count];
+                        for (int i = 0; i < length; i++, i++)
+                        {
+                            strInputs[i / 2] = strInput.Substring(i, 2);
+                            byteInput[i / 2] = Convert.ToByte(strInputs[i / 2], 16);
+                        }
+                        return byteInput;
+                    }
+                case SplitEnum.Blank:
+                case SplitEnum.Dash:
+                    {
+                        int _length = strInput.Length + 1;
+                        int _count = length / 3;
+                        string[] strInputs = new string[_count];
+
+                        if (_splitEnum == SplitEnum.Blank)
+                        {
+                            strInputs = strInput.Split(' ');
+                        }
+                        else if (_splitEnum == SplitEnum.Dash)
+                        {
+                            strInputs = strInput.Split('-');
+                        }
+                        _count = strInputs.Length;
+                        byte[] _byteInput = new byte[_count];
+                        for (int i = 0; i < _count; i++)
+                        {
+                            _byteInput[i] = Convert.ToByte(strInputs[i], 16);
+                        }
+                        return _byteInput;
+                    }
+                default:
+                    return null;
+            }
+        }
+
+        private void rbVoidSplit_Checked(object sender, RoutedEventArgs e)
+        {
+            _splitEnum = SplitEnum.Void;
+        }
+
+        private void rbBlankSplit_Checked(object sender, RoutedEventArgs e)
+        {
+            _splitEnum = SplitEnum.Blank;
+        }
+
+        private void rbDashSplit_Checked(object sender, RoutedEventArgs e)
+        {
+            _splitEnum = SplitEnum.Dash;
+        }
+
+        private void CheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _hexSend = true;
+        }
+
+        private void CheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _hexSend = false;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

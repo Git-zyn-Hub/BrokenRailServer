@@ -77,7 +77,15 @@
                                 <RowDefinition Height="155*"/>
                             </Grid.RowDefinitions>
                             <Label Grid.Row="0">发送：</Label>
-                            <Button x:Name="btnSend" Width="80" HorizontalAlignment="Right" Click="btnSend_Click">发送</Button>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="100 0">
+                                <RadioButton x:Name="rbVoidSplit" IsChecked="True" Checked="rbVoidSplit_Checked" Margin="5">无分隔符</RadioButton>
+                                <RadioButton x:Name="rbBlankSplit" Checked="rbBlankSplit_Checked" Margin="5">空格分隔</RadioButton>
+                                <RadioButton x:Name="rbDashSplit" Checked="rbDashSplit_Checked" Margin="5">'-'分隔</RadioButton>
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                                <CheckBox Margin="10 5" Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked">十六进制</CheckBox>
+                                <Button x:Name="btnSend" Width="80" Height="30" Click="btnSend_Click">发送</Button>
+                            </StackPanel>
                             <TextBox x:Name="txtSend" Grid.Row="1"></TextBox>
                         </Grid>
                     </Grid>
