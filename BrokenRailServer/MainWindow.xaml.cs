@@ -3,6 +3,7 @@ using BrokenRailMonitorViaWiFi.Windows;
 using BrokenRailServer.Classes;
 using BrokenRailServer.SendReceiveFile;
 using BrokenRailServer.UserControls;
+using Microsoft.Win32;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -169,6 +170,39 @@ namespace BrokenRailServer
             PackageCount = 0;
             this.lblPackageCount.Content = PackageCount.ToString();
             this.dataShowUserCtrl.ClearContainer();
+        }
+
+        private void btnSelectFile_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            openFileDialog.InitialDirectory = System.Environment.CurrentDirectory;
+            openFileDialog.Filter = "bin files(*.bin)|*.bin";
+            openFileDialog.RestoreDirectory = true;
+            openFileDialog.FilterIndex = 1;
+            if (openFileDialog.ShowDialog().Value == true)
+            {
+                try
+                {
+                    string fName = openFileDialog.FileName;
+                    using (FileStream fs = File.Open(fName, FileMode.Open))
+                    {
+                        byte[] bytesInFile = new byte[fs.Length];
+                        using (BinaryReader reader = new BinaryReader(fs))
+                        {
+                            int index = 0;
+                            while (fs.Length > index)
+                            {
+                                bytesInFile[index] = reader.ReadByte();
+                                index++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ee)
+                {
+                    AppendMessage(ee.Message, DataLevel.Error);
+                }
+            }
         }
 
         private void btnSend_Click(object sender, RoutedEventArgs e)
@@ -1549,6 +1583,16 @@ namespace BrokenRailServer
                                 AppendClientMsg(data[3], "获取单点铁轨信息", DataLevel.Default);
                             }
                             break;
+                        case (byte)CommandType.ConfigInitialInfo:
+                            {
+                                AppendClientMsg(data[3], "进行初始信息配置", DataLevel.Default);
+                            }
+                            break;
+                        case (byte)CommandType.ReadPointInfo:
+                            {
+                                AppendClientMsg(data[3], "读取单点配置信息", DataLevel.Default);
+                            }
+                            break;
                         default:
                             break;
                     }
@@ -1995,7 +2039,7 @@ namespace BrokenRailServer
                     DateTime now = System.DateTime.Now;
                     int totalSecondToNow = now.Hour * 3600 + now.Minute * 60 + now.Second;
                     int timeToSend = 75 - (totalSecondToNow % 75);
-                    
+
                     _timeToWaitTimer.Tick += (s, ee) =>
                     {
                         _timeToWaitTimer.Stop();

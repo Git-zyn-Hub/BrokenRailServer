@@ -83,6 +83,7 @@
                                 <RadioButton x:Name="rbDashSplit" Checked="rbDashSplit_Checked" Margin="5">'-'分隔</RadioButton>
                             </StackPanel>
                             <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                                <Button x:Name="btnSelectFile" Width="80" Height="30" Click="btnSelectFile_Click">选择文件</Button>
                                 <CheckBox Margin="10 5" Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked">十六进制</CheckBox>
                                 <Button x:Name="btnSend" Width="80" Height="30" Click="btnSend_Click">发送</Button>
                             </StackPanel>
