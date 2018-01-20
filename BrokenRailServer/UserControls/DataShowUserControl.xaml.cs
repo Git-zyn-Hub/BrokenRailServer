@@ -33,6 +33,7 @@ namespace BrokenRailMonitorViaWiFi
             {
                 string nowTime = System.DateTime.Now.ToString("HH:mm:ss.fff");
                 TextBlock txtData = new TextBlock();
+                txtData.TextWrapping = TextWrapping.Wrap;
                 switch (dataLevel)
                 {
                     case DataLevel.Default:

@@ -175,7 +175,7 @@ namespace BrokenRailServer
         private void btnSelectFile_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.InitialDirectory = System.Environment.CurrentDirectory;
+            //openFileDialog.InitialDirectory = System.Environment.CurrentDirectory;
             openFileDialog.Filter = "bin files(*.bin)|*.bin";
             openFileDialog.RestoreDirectory = true;
             openFileDialog.FilterIndex = 1;
@@ -187,14 +187,21 @@ namespace BrokenRailServer
                     using (FileStream fs = File.Open(fName, FileMode.Open))
                     {
                         byte[] bytesInFile = new byte[fs.Length];
+                        StringBuilder sb = new StringBuilder();
+                        int checksum = 0;
                         using (BinaryReader reader = new BinaryReader(fs))
                         {
                             int index = 0;
                             while (fs.Length > index)
                             {
                                 bytesInFile[index] = reader.ReadByte();
+                                sb.Append(bytesInFile[index].ToString("X2"));
+                                sb.Append(" ");
+                                checksum += bytesInFile[index];
                                 index++;
                             }
+                            this.txtSend.Text = "55 AA 66 CC " + get2BytesString(fs.Length) + " " + sb.ToString() + get2BytesString(checksum);
+                            ready2SendFile();
                         }
                     }
                 }
@@ -203,6 +210,24 @@ namespace BrokenRailServer
                     AppendMessage(ee.Message, DataLevel.Error);
                 }
             }
+        }
+
+        private string get2BytesString(long input)
+        {
+            return ((byte)((input & 0xFF00) >> 8)).ToString("X2") + " " + ((byte)(input & 0xFF)).ToString("X2");
+        }
+
+        private void ready2SendFile()
+        {
+            this.rbBlankSplit.IsChecked = true;
+            this.cbxHexSend.IsChecked = true;
+            this.txtSend.IsReadOnly = true;
+        }
+
+        private void btnClearSend_Click(object sender, RoutedEventArgs e)
+        {
+            this.txtSend.Text = String.Empty;
+            this.txtSend.IsReadOnly = false;
         }
 
         private void btnSend_Click(object sender, RoutedEventArgs e)
