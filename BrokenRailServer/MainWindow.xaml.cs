@@ -200,6 +200,12 @@ namespace BrokenRailServer
                                 checksum += bytesInFile[index];
                                 index++;
                             }
+                            int thirdByte = (((int)(fs.Length)) & 0xff0000) >> 16;
+                            if (thirdByte > 0)
+                            {
+                                MessageBox.Show("注意：文件长度超过两个字节，2字节的长度已无法完全表示Bin文件的长度！");
+                                return;
+                            }
                             this.txtSend.Text = "55 AA 66 CC " + get2BytesString(fs.Length) + " " + sb.ToString() + get2BytesString(checksum);
                             ready2SendFile();
                         }
