@@ -31,4 +31,10 @@ namespace BrokenRailServer
         Upload,
         Download
     }
+
+    public enum FileSendType
+    {
+        Header = 0x44,
+        Body = 0xbb
+    }
 }

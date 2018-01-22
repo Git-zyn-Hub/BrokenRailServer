@@ -67,6 +67,8 @@ namespace BrokenRailServer
         private XmlHelper _xmlHelper = new XmlHelper();
         private bool _hexSend = false;
         private SplitEnum _splitEnum;
+        private byte[] _bytesInFile;
+        private int _fileChecksum = 0;
 
         public int PackageCount
         {
@@ -186,27 +188,27 @@ namespace BrokenRailServer
                     string fName = openFileDialog.FileName;
                     using (FileStream fs = File.Open(fName, FileMode.Open))
                     {
-                        byte[] bytesInFile = new byte[fs.Length];
+                        _bytesInFile = new byte[fs.Length];
                         StringBuilder sb = new StringBuilder();
-                        int checksum = 0;
+
                         using (BinaryReader reader = new BinaryReader(fs))
                         {
                             int index = 0;
                             while (fs.Length > index)
                             {
-                                bytesInFile[index] = reader.ReadByte();
-                                sb.Append(bytesInFile[index].ToString("X2"));
+                                _bytesInFile[index] = reader.ReadByte();
+                                sb.Append(_bytesInFile[index].ToString("X2"));
                                 sb.Append(" ");
-                                checksum += bytesInFile[index];
+                                _fileChecksum += _bytesInFile[index];
                                 index++;
                             }
-                            int thirdByte = (((int)(fs.Length)) & 0xff0000) >> 16;
-                            if (thirdByte > 0)
+                            if (fs.Length > 262144)
                             {
-                                MessageBox.Show("注意：文件长度超过两个字节，2字节的长度已无法完全表示Bin文件的长度！");
+                                MessageBox.Show("注意：文件长度超过256*1024个字节，1字节的总包数已无法完全表示Bin文件的长度！");
                                 return;
                             }
-                            this.txtSend.Text = "55 AA 66 CC " + get2BytesString(fs.Length) + " " + sb.ToString() + get2BytesString(checksum);
+                            //this.txtSend.Text = "55 AA 66 CC " + get2BytesString(fs.Length) + " " + sb.ToString() + get2BytesString(checksum);
+                            this.txtSend.Text = sb.ToString();
                             ready2SendFile();
                         }
                     }
@@ -234,6 +236,7 @@ namespace BrokenRailServer
         {
             this.txtSend.Text = String.Empty;
             this.txtSend.IsReadOnly = false;
+            _bytesInFile = null;
         }
 
         private void btnSend_Click(object sender, RoutedEventArgs e)
@@ -244,6 +247,12 @@ namespace BrokenRailServer
                 {
                     AppendMessage("不能发送空字符串！", DataLevel.Error);
                     txtSend.Focus();
+                    return;
+                }
+
+                if (this.txtSend.IsReadOnly)
+                {
+                    sendFile();
                     return;
                 }
 
@@ -280,6 +289,49 @@ namespace BrokenRailServer
             catch (Exception ee)
             {
                 AppendMessage("发送异常：" + ee.Message, DataLevel.Error);
+            }
+        }
+
+        private void sendFile()
+        {
+
+            foreach (TerminalAndClientUserControl item in this.stpIpAndPortContainer.Children)
+            {
+                if (item.cbxSelected.IsChecked == true)
+                {
+                    if (item.SocketImport == null)
+                    {
+                        AppendMessage(item.lblIpAndPort.Content + "网络未连接！", DataLevel.Error);
+                        continue;
+                    }
+                    if (_hexSend)
+                    {
+                        if (_bytesInFile != null)
+                        {
+                            int totalPackageCount = _bytesInFile.Length % 1024 == 0 ? (_bytesInFile.Length / 1024) : (_bytesInFile.Length / 1024 + 1);
+                            byte[] fileContent = new byte[4];
+                            fileContent[0] = (byte)((_bytesInFile.Length & 0xFF00) >> 8);
+                            fileContent[1] = (byte)(_bytesInFile.Length & 0xFF);
+                            fileContent[2] = (byte)((_fileChecksum & 0xFF00) >> 8);
+                            fileContent[3] = (byte)(_fileChecksum & 0xFF);
+                            byte[] sendData = SendDataPackage.PackageFileBody(FileSendType.Header, (byte)totalPackageCount, fileContent);
+                            SendData(item, sendData);
+
+                            for (int i = 0; i < totalPackageCount; i++)
+                            {
+                                int binLength = _bytesInFile.Length - i * 1024 >= 1024 ? 1024 : (_bytesInFile.Length - i * 1024);
+                                byte[] content = new byte[binLength];
+                                Buffer.BlockCopy(_bytesInFile, i * 1024, content, 0, binLength);
+                                sendData = SendDataPackage.PackageFileBody(FileSendType.Body, (byte)i, content);
+                                SendData(item, sendData);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        AppendMessage("发送文件必须勾选‘十六进制’", DataLevel.Error);
+                    }
+                }
             }
         }
 
