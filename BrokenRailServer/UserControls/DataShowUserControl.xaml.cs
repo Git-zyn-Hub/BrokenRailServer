@@ -32,7 +32,10 @@ namespace BrokenRailMonitorViaWiFi
             try
             {
                 string nowTime = System.DateTime.Now.ToString("HH:mm:ss.fff");
-                TextBlock txtData = new TextBlock();
+                TextBox txtData = new TextBox();
+                txtData.BorderBrush = null;
+                txtData.BorderThickness = new Thickness(0);
+                txtData.IsReadOnly = true;
                 txtData.TextWrapping = TextWrapping.Wrap;
                 switch (dataLevel)
                 {

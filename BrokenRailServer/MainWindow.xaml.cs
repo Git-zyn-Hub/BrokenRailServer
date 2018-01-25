@@ -316,7 +316,7 @@ namespace BrokenRailServer
                             fileContent[3] = (byte)(_fileChecksum & 0xFF);
                             byte[] sendData = SendDataPackage.PackageFileBody(FileSendType.Header, (byte)totalPackageCount, fileContent);
                             SendData(item, sendData);
-
+                            Thread.Sleep(700);
                             for (int i = 0; i < totalPackageCount; i++)
                             {
                                 int binLength = _bytesInFile.Length - i * 1024 >= 1024 ? 1024 : (_bytesInFile.Length - i * 1024);
@@ -324,6 +324,7 @@ namespace BrokenRailServer
                                 Buffer.BlockCopy(_bytesInFile, i * 1024, content, 0, binLength);
                                 sendData = SendDataPackage.PackageFileBody(FileSendType.Body, (byte)i, content);
                                 SendData(item, sendData);
+                                Thread.Sleep(500);
                             }
                         }
                     }
@@ -1616,7 +1617,8 @@ namespace BrokenRailServer
                 }
                 else
                 {
-                    return bytesToHexString(data, length);
+                    //return bytesToHexString(data, length);
+                    return Encoding.Default.GetString(data, 0, length);
                 }
             }
             return null;
