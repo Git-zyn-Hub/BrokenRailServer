@@ -17,6 +17,7 @@ namespace BrokenRailServer
         ConfigInitialInfo = 0xF0,
         ReadPointInfo = 0xF1,
         ThresholdSetting = 0xF2,
+        TerminalReset = 0xF3,
         GetHistory = 0xF4,
         GetPointRailInfo = 0xF5,
         ImmediatelyRespond = 0xFE,

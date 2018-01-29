@@ -294,7 +294,6 @@ namespace BrokenRailServer
 
         private void sendFile()
         {
-
             foreach (TerminalAndClientUserControl item in this.stpIpAndPortContainer.Children)
             {
                 if (item.cbxSelected.IsChecked == true)
@@ -324,7 +323,7 @@ namespace BrokenRailServer
                                 Buffer.BlockCopy(_bytesInFile, i * 1024, content, 0, binLength);
                                 sendData = SendDataPackage.PackageFileBody(FileSendType.Body, (byte)i, content);
                                 SendData(item, sendData);
-                                Thread.Sleep(500);
+                                Thread.Sleep(600);
                             }
                         }
                     }

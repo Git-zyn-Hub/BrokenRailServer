@@ -19,6 +19,7 @@
                 <!--<MenuItem x:Name="miSignalSendConfig" Header="超声信号发射配置" Click="miSignalSendConfig_Click"></MenuItem>-->
                 <MenuItem x:Name="miThresholdSetting" Header="门限设置" Click="miThresholdSetting_Click"></MenuItem>
                 <MenuItem x:Name="miGetHistory" Header="获取历史" Click="miGetHistory_Click"></MenuItem>
+                <MenuItem x:Name="miTerminalReset" Header="终端复位" Click="miTerminalReset_Click"></MenuItem>
                 <!--<MenuItem x:Name="miGetPointSignalAmplitude" Header="获取单点信号幅值" Click="miGetPointSignalAmplitude_Click"></MenuItem>-->
             </ContextMenu>
         </Grid.ContextMenu>

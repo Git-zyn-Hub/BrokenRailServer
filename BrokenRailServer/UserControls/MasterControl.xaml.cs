@@ -529,6 +529,33 @@ namespace BrokenRailServer.UserControls
             }
         }
 
+
+        private void miTerminalReset_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_mainWin == null)
+                {
+                    return;
+                }
+                byte[] sendData = SendDataPackage.PackageSendData(0xff, (byte)_terminalNumber, (byte)CommandType.TerminalReset, new byte[0]);
+                TerminalAndClientUserControl socketGet = GetNearest4GTerminalSocket(true);
+                if (socketGet != null)
+                {
+                    _mainWin.DecideDelayOrNot();
+                    _mainWin.SendData(socketGet, sendData);
+                }
+                else
+                {
+                    _mainWin.AppendMessage(Find4GErrorMsg, DataLevel.Error);
+                }
+            }
+            catch (Exception ee)
+            {
+                _mainWin.AppendMessage(ee.Message, DataLevel.Error);
+            }
+        }
+
         public TerminalAndClientUserControl GetNearest4GTerminalSocket(bool isForward)
         {
             if (this.Is4G)
