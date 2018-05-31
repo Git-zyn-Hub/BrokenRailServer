@@ -861,6 +861,13 @@ namespace BrokenRailServer
                                         _getPointRailInfoClient = frd;
                                     }
                                     break;
+                                case (byte)CommandType.RealTimeConfig:
+                                    {
+                                        DateTime timeConfig = new DateTime(data[7] + 2000, data[8], data[9], data[10], data[11], data[12]);
+                                        AppendMessage(data[3] + "号客户端为" + ((data[6] == data[4]) ? data[4].ToString() : (data[6] + "到" + data[4])) + "号终端对时：" +
+                                            timeConfig.ToString("yyyy-MM-dd HH:mm:ss"), DataLevel.Normal);
+                                    }
+                                    break;
                                 default:
                                     break;
                             }
